@@ -1,0 +1,790 @@
+<title>월급의 셈법</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Layout: 급여명세서(ledger) 감성 — 상단 고정 바 + 챕터 탭 스트립, 챕터는 "내 계산 | 함께 보기" 2단 */
+:root{
+  --bg:#F2F4F9; --surface:#FFFFFF; --surface2:#F6F8FC; --ink:#0F1A2E; --mute:#5A6579; --line:#DCE1EC;
+  --accent:#2344E8; --accent-ink:#FFFFFF; --accent-soft:#E6EBFF;
+  --gold:#E39A0B; --teal:#0C9A86; --coral:#DD4B5B; --violet:#7656F0; --sky:#2F9BE6;
+  --good:#0C9A86; --bad:#DD4B5B; --shadow:0 1px 2px rgba(15,26,46,.06),0 6px 20px rgba(15,26,46,.05);
+  --f-display:'Black Han Sans','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-body:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  --f-num:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0B111F; --surface:#131B2D; --surface2:#182238; --ink:#E8ECF5; --mute:#98A3B9; --line:#26314A;
+  --accent:#7790FF; --accent-ink:#0B111F; --accent-soft:#1D2A55;
+  --gold:#F2B33A; --teal:#38C4AE; --coral:#FF7C89; --violet:#A38DFF; --sky:#62B8F2;
+  --good:#38C4AE; --bad:#FF7C89; --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B111F; --surface:#131B2D; --surface2:#182238; --ink:#E8ECF5; --mute:#98A3B9; --line:#26314A;
+  --accent:#7790FF; --accent-ink:#0B111F; --accent-soft:#1D2A55;
+  --gold:#F2B33A; --teal:#38C4AE; --coral:#FF7C89; --violet:#A38DFF; --sky:#62B8F2;
+  --good:#38C4AE; --bad:#FF7C89; --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:30}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3,p{margin:0}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:14px;padding-block:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px;cursor:pointer;background:none;border:0;padding:0;text-align:left}
+.brand b{font-family:var(--f-display);font-weight:400;font-size:26px;letter-spacing:-.02em;line-height:1}
+.brand small{font-family:var(--f-num);font-size:10.5px;letter-spacing:.16em;color:var(--mute);text-transform:uppercase}
+.spacer{flex:1}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+.who input{width:130px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);font-size:13px}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--mute)}
+.live.on i{background:var(--teal);box-shadow:0 0 0 0 var(--teal);animation:pulse 1.8s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.live.on i{animation:none}}
+.chip{font-size:12px;border:1px solid var(--line);background:var(--surface2);padding:5px 10px;border-radius:99px;cursor:pointer;color:var(--mute)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* chapter strip */
+.strip{background:var(--surface);border-bottom:1px solid var(--line)}
+.strip .wrap{display:flex;gap:6px;overflow-x:auto;padding-block:8px;scrollbar-width:thin}
+.tab{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;border:1px solid transparent;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--mute);white-space:nowrap}
+.tab .n{font-family:var(--f-num);font-size:11px;width:22px;height:22px;border-radius:6px;background:var(--surface2);display:grid;place-items:center;color:var(--ink);border:1px solid var(--line)}
+.tab:hover{color:var(--ink)}
+.tab[aria-current="page"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tab[aria-current="page"] .n{background:transparent;color:var(--accent-ink);border-color:currentColor}
+.tab.done .n{background:var(--teal);border-color:var(--teal);color:#fff}
+.tab[aria-current="page"].done .n{background:#fff;color:var(--accent);border-color:#fff}
+
+main{padding-block:26px 60px}
+.chead{display:grid;gap:8px;margin-bottom:20px;max-width:780px}
+.chead .cno{font-family:var(--f-display);font-size:64px;line-height:.9;color:var(--accent);letter-spacing:-.03em}
+.chead h2{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,5vw,40px);letter-spacing:-.02em;line-height:1.1;text-wrap:balance}
+.chead .cref{font-family:var(--f-num);font-size:12px;color:var(--mute);letter-spacing:.02em}
+.chead .cintro{color:var(--mute);max-width:65ch}
+.chead .formula{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chead .formula code{font-family:var(--f-num);font-size:13px;background:var(--accent-soft);color:var(--accent);padding:4px 10px;border-radius:8px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);min-width:0}
+.panel>h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.panel.group{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.sub{font-size:13px;font-weight:600;margin:18px 0 8px}
+.hint{font-size:12.5px;color:var(--mute)}
+.stack{display:grid;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>*{min-width:0}
+
+/* fields */
+.f{display:grid;gap:4px;font-size:12.5px;color:var(--mute);flex:1 1 130px;min-width:0}
+.f.w2{flex:2 1 200px}
+.inp{display:flex;align-items:center;border:1px solid var(--line);background:var(--surface2);border-radius:9px;overflow:hidden}
+.inp:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.inp input,.inp select{border:0;background:transparent;padding:8px 10px;width:100%;min-width:0;font-family:var(--f-num);font-size:14px;color:var(--ink)}
+.inp select{font-family:var(--f-body)}
+.inp em{font-style:normal;font-size:12px;color:var(--mute);padding-right:10px;white-space:nowrap}
+.seg{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--mute);font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.pri:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:4px 9px;font-size:12px;font-weight:500}
+.btn.ghost{background:none}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}
+.kpi{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.kpi small{display:block;font-size:11.5px;color:var(--mute)}
+.kpi b{display:block;font-family:var(--f-num);font-size:18px;font-weight:600;overflow-wrap:anywhere}
+.kpi.hi{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.kpi.hi small{color:inherit;opacity:.8}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.kpi.hi .pos,.kpi.hi .neg{color:inherit}
+.note{font-size:13px;padding:10px 12px;border-radius:10px;background:var(--surface2);border-left:3px solid var(--gold)}
+.note.ok{border-left-color:var(--teal)}.note.bad{border-left-color:var(--coral)}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11.5px;color:var(--mute);font-weight:600;background:var(--surface2)}
+tr:last-child td{border-bottom:0}
+td input{width:100%;min-width:60px;border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:4px 6px;font-family:var(--f-num);font-size:13px;text-align:right}
+td input[type=time]{min-width:92px}
+td input.t{text-align:left}
+td select{border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:4px 2px;font-size:12.5px;max-width:112px}
+tr.tot td{font-weight:700;background:var(--surface2)}
+.cv{position:relative;height:250px;margin-top:6px}
+.cv.tall{height:320px}.cv.short{height:190px}
+.meter{height:10px;border-radius:99px;background:var(--surface2);border:1px solid var(--line);position:relative;overflow:visible;margin:8px 0 4px}
+.meter i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--accent)}
+.meter u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:10px;align-items:center;border:1px solid var(--line);background:var(--surface2);padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left;font-size:13.5px}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.opt.right{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 16%,var(--surface))}
+.opt.wrong{border-color:var(--coral);background:color-mix(in srgb,var(--coral) 14%,var(--surface))}
+.empty{padding:26px 14px;text-align:center;color:var(--mute);border:1px dashed var(--line);border-radius:12px;font-size:13.5px}
+.sharebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:12px;background:var(--accent-soft);margin-bottom:14px}
+.sharebar p{flex:1 1 200px;font-size:12.5px;color:var(--ink)}
+.curr{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.cc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left;cursor:pointer;display:grid;gap:4px;box-shadow:var(--shadow)}
+.cc:hover{border-color:var(--accent)}
+.cc .n{font-family:var(--f-display);font-size:28px;color:var(--accent);line-height:1}
+.cc b{font-size:14px}.cc span{font-size:12px;color:var(--mute)}
+.cc .st{font-size:11.5px;font-weight:600;color:var(--teal)}
+.people{display:flex;gap:6px;flex-wrap:wrap}
+.pp{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface2)}
+.pp.me{border-color:var(--accent);color:var(--accent);font-weight:600}
+.pp s{text-decoration:none;font-family:var(--f-num);font-size:11px;color:var(--mute)}
+.hero{display:grid;gap:10px;margin-bottom:22px;max-width:760px}
+.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(38px,8vw,72px);letter-spacing:-.03em;line-height:1}
+.hero h1 span{color:var(--accent)}
+.hero p{color:var(--mute);font-size:16px;max-width:60ch}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+</style>
+
+<header class="top"><div class="wrap">
+  <button class="brand" data-go="home" aria-label="홈으로"><b>월급의 셈법</b><small>Payday Math</small></button>
+  <span class="live" id="live"><i></i><span id="liveTx">연결 중</span></span>
+  <span class="spacer"></span>
+  <button class="chip" id="smp" aria-pressed="false" title="실제 참가자가 없을 때 화면 구성을 미리 보는 예시 데이터">샘플 참가자 보기</button>
+  <label class="who">닉네임 <input id="nick" maxlength="14" autocomplete="off"></label>
+</div></header>
+<nav class="strip" aria-label="챕터"><div class="wrap" id="tabs"></div></nav>
+<main><div class="wrap" id="app"></div></main>
+
+<script>
+(()=>{
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fin=n=>Number.isFinite(n);
+const fN=(n,d=0)=>fin(n)?n.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
+const fW=n=>fin(n)?(n<0?'−':'')+Math.round(Math.abs(n)).toLocaleString('ko-KR')+'원':'–';
+const fD=n=>fin(n)?(n<0?'−':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'–';
+const fP=(n,d=1)=>fin(n)?fN(n,d)+'%':'–';
+const r2=n=>Math.round(n*100)/100;
+const put=(id,t,cls)=>{const e=document.getElementById(id);if(e){e.textContent=t;if(cls!==undefined)e.className=cls}};
+const sum=a=>a.reduce((x,y)=>x+(+y||0),0);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const avg=a=>a.length?sum(a)/a.length:NaN;
+const median=a=>{if(!a.length)return NaN;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+function rng(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}}
+
+/* ---------- 상태 ---------- */
+const KEY='paydaymath.v1';
+let S={nick:'',ch:{},pubd:{},sample:false};
+try{const j=JSON.parse(localStorage.getItem(KEY)||'null');if(j&&typeof j==='object')S=Object.assign(S,j)}catch(e){}
+if(!S.nick)S.nick='참가자'+Math.floor(100+Math.random()*900);
+let saveT=0;const save=()=>{clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}},250)};
+const CHAPS={};const ORDER=[];
+const st=c=>S.ch[c]||(S.ch[c]=CHAPS[c].def());
+const setPath=(o,p,v)=>{const ks=p.split('.');let t=o;for(let i=0;i<ks.length-1;i++)t=t[ks[i]];t[ks[ks.length-1]]=v};
+
+/* ---------- 차트 ---------- */
+const CI={};
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const PAL=()=>['--accent','--gold','--teal','--coral','--violet','--sky'].map(cssv);
+function mk(id,type,data,opt={}){
+  if(CI[id]){CI[id].destroy();delete CI[id]}
+  const el=document.getElementById(id);if(!el||!window.Chart)return null;
+  const ink=cssv('--ink'),mute=cssv('--mute'),line=cssv('--line');
+  Chart.defaults.font.family=cssv('--f-body');Chart.defaults.color=mute;
+  const sc=opt.scales||{};
+  const cfg={type,data,options:Object.assign({responsive:true,maintainAspectRatio:false,animation:{duration:350},
+    plugins:Object.assign({legend:{display:opt.legend!==false&&data.datasets.length>1,labels:{boxWidth:10,boxHeight:10,color:mute}},tooltip:{callbacks:opt.tip||{}}},opt.plugins||{}),
+    scales:type==='doughnut'||type==='pie'?undefined:{x:Object.assign({grid:{color:line},ticks:{color:mute},border:{color:line}},sc.x||{}),y:Object.assign({grid:{color:line},ticks:{color:mute},border:{color:line}},sc.y||{})}
+  },opt.o||{})};
+  CI[id]=new Chart(el,cfg);return CI[id];
+}
+const killCharts=()=>{Object.keys(CI).forEach(k=>{CI[k].destroy();delete CI[k]})};
+const cv=(id,cls='')=>`<div class="cv ${cls}"><canvas id="${id}" role="img" aria-label="차트"></canvas></div>`;
+const wonTick=v=>Math.abs(v)>=1e8?fN(v/1e8,v%1e8?1:0)+'억':Math.abs(v)>=1e4?fN(v/1e4,v%1e4?1:0)+'만':fN(v);
+
+/* ---------- 폼 헬퍼 ---------- */
+const fld=(k,label,val,o={})=>`<label class="f ${o.w||''}"><span>${label}</span><span class="inp"><input data-k="${k}" type="${o.t||'number'}" ${o.t?'data-t="s"':'inputmode="decimal"'} step="${o.step||'any'}" value="${esc(val)}">${o.u?`<em>${o.u}</em>`:''}</span></label>`;
+const sel=(k,label,val,opts,o={})=>`<label class="f ${o.w||''}"><span>${label}</span><span class="inp"><select data-k="${k}" data-t="s">${opts.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(val)?'selected':''}>${esc(t)}</option>`).join('')}</select></span></label>`;
+const kpi=(id,label,cls='')=>`<div class="kpi ${cls}"><small>${label}</small><b id="${id}">–</b></div>`;
+const segTabs=(cur,list)=>`<div class="seg" role="tablist">${list.map(([v,t])=>`<button role="tab" aria-pressed="${cur===v}" data-act="tab" data-v="${v}">${t}</button>`).join('')}</div>`;
+const legend=(items)=>`<div class="legend">${items.map(([c,t])=>`<span><i style="background:${c}"></i>${t}</span>`).join('')}</div>`;
+
+/* ---------- 라이브(db) ---------- */
+let db=null,uid=null,canWrite=false,rows={},mine=null,liveState='connecting';
+let wq=Promise.resolve();
+function liveUI(){
+  const e=$('#live');if(!e)return;
+  e.classList.toggle('on',liveState==='on');
+  const n=Object.keys(rows).length;
+  $('#liveTx').textContent=liveState==='on'?`LIVE · 참여 ${n}명`:liveState==='off'?'나 혼자 보기':'연결 중';
+}
+async function initLive(){
+  try{
+    if(!window.claude||!window.claude.use){liveState='off';liveUI();return}
+    const [u,d]=await Promise.all([window.claude.use('user'),window.claude.use('db')]);
+    if(!d||!u){liveState='off';liveUI();return}
+    uid=await u.id();try{canWrite=(await u.can('data.write'))!==false}catch(e){canWrite=true}
+    if(!uid){liveState='off';liveUI();return}
+    db=d;
+    db.collection('r').onSnapshot(snap=>{
+      const m={};snap.docs.forEach(x=>{m[x.id]=x.data()||{}});rows=m;mine=m[uid]||null;
+      if(mine){CHAPKEYS.forEach(c=>{if(mine[c]&&!S.pubd[c])S.pubd[c]=mine[c]})}
+      liveState='on';liveUI();onRows();
+    },e=>{liveState='off';liveUI()});
+  }catch(e){liveState='off';liveUI()}
+}
+function writeMine(){
+  if(!db||!uid)return Promise.resolve();
+  wq=wq.then(async()=>{
+    const doc={nick:S.nick,t:Date.now()};
+    CHAPKEYS.forEach(c=>{if(S.pubd[c])doc[c]=S.pubd[c]});
+    if(!Object.keys(S.pubd).some(c=>S.pubd[c])){await db.doc('r/'+uid).delete();return}
+    await db.doc('r/'+uid).set(doc);
+  }).catch(e=>{toast('공유 저장에 실패했습니다. 참여 권한(기여자)을 확인하세요.')});
+  return wq;
+}
+let toastT;function toast(t){let e=$('#toast');if(!e){e=document.createElement('div');e.id='toast';e.setAttribute('role','status');e.style.cssText='position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:13px;z-index:50;max-width:90vw';document.body.appendChild(e)}e.textContent=t;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>e.hidden=true,3200)}
+
+function listFor(c){
+  const out=[];
+  if(db&&uid){for(const [id,d] of Object.entries(rows)){if(d&&d[c])out.push({id,nick:d.nick||'익명',me:id===uid,d:d[c]})}}
+  else if(S.pubd[c])out.push({id:'me',nick:S.nick,me:true,d:S.pubd[c]});
+  if(S.sample)CHAPS[c].sample().forEach((d,i)=>out.push({id:'s'+i,nick:'샘플 '+(i+1),me:false,sample:true,d}));
+  return out;
+}
+const isDirty=c=>{const p=CHAPS[c].pub(st(c));return JSON.stringify(p)!==JSON.stringify(S.pubd[c]||null)};
+
+/* ---------- 화면 ---------- */
+let cur='home';
+const app=$('#app');
+function renderTabs(){
+  $('#tabs').innerHTML=`<button class="tab" ${cur==='home'?'aria-current="page"':''} data-go="home"><span class="n">⌂</span>홈</button>`+ORDER.map(c=>{const h=CHAPS[c];return `<button class="tab ${S.pubd[c]?'done':''}" ${cur===c?'aria-current="page"':''} data-go="${c}"><span class="n">${h.no}</span>${h.short}</button>`}).join('');
+  const a=$('.tab[aria-current]');if(a&&a.scrollIntoView)try{a.scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
+}
+function go(c){
+  if(c!=='home'&&!CHAPS[c])c='home';
+  cur=c;killCharts();renderTabs();
+  try{history.replaceState(null,'','#'+c)}catch(e){}
+  if(c==='home'){renderHome();window.scrollTo(0,0);return}
+  const h=CHAPS[c],s=st(c);
+  app.innerHTML=`<section class="chead"><div class="cno">${String(h.no).padStart(2,'0')}</div><h2>${h.title}</h2><p class="cref">${h.ref}</p><p class="cintro">${h.intro}</p><div class="formula">${(h.formula||[]).map(f=>`<code>${f}</code>`).join('')}</div></section>
+  <div class="grid"><div class="panel"><h3>내 계산</h3><div id="mine" class="stack"></div></div>
+  <div class="panel group"><h3>함께 보기 <span class="live ${liveState==='on'?'on':''}"><i></i>${liveState==='on'?'실시간':'미리보기'}</span></h3><div class="sharebar" id="sb"></div><div id="grp" class="stack"></div></div></div>`;
+  paintMine();paintGroup();paintShare();window.scrollTo(0,0);
+}
+function paintMine(){const h=CHAPS[cur],s=st(cur);$('#mine').innerHTML=h.html(s);h.calc(s)}
+function paintShare(){
+  const sb=$('#sb');if(!sb||cur==='home')return;const c=cur,has=!!S.pubd[c],dirty=has&&isDirty(c);
+  const can=db&&uid&&canWrite;
+  sb.innerHTML=`<p>${can?(has?(dirty?'계산을 바꿨습니다. 공유 결과를 업데이트할까요?':'내 결과가 공유되었습니다. 비율·구간 같은 요약값만 올라가며, 실제 금액 전체는 올라가지 않습니다.'):'아래 버튼을 누르면 내 요약 결과가 다른 참가자 화면에 나타납니다. 누르기 전에는 아무것도 공유되지 않습니다.'):'이 화면에서는 공유 저장을 쓸 수 없습니다. 링크로 입장(기여자 권한)하면 실시간 공유가 켜집니다.'}</p>
+  <button class="btn pri" data-act="share" ${can?'':'disabled'}>${has?(dirty?'공유 업데이트':'공유됨 ✓'):'내 결과 공유하기'}</button>${has?'<button class="btn ghost sm" data-act="unshare">공유 취소</button>':''}`;
+  const b=$('[data-act=share]',sb);if(b&&has&&!dirty)b.disabled=true;
+}
+function paintGroup(){
+  if(cur==='home')return;const h=CHAPS[cur],el=$('#grp');if(!el)return;
+  const list=listFor(cur);
+  if(!list.length){el.innerHTML=`<div class="empty">아직 공유한 참가자가 없습니다.<br>내 계산을 마치고 <b>내 결과 공유하기</b>를 눌러 첫 번째로 시작해 보세요.<br><span class="hint">화면 구성이 궁금하면 상단의 「샘플 참가자 보기」를 켜 보세요.</span></div>`;return}
+  el.innerHTML=`<p class="hint">${list.filter(x=>!x.sample).length}명 공유${list.some(x=>x.sample)?' + 샘플 '+list.filter(x=>x.sample).length+'명(예시)':''}</p><div id="gbody" class="stack"></div>`;
+  h.group(list,$('#gbody'));
+}
+let rt=0;
+function onRows(){
+  liveUI();renderTabs();
+  clearTimeout(rt);rt=setTimeout(()=>{if(cur==='home')renderHome();else{paintGroup();paintShare()}},120);
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='nick'){S.nick=t.value.trim()||'참가자';save();clearTimeout(t._w);t._w=setTimeout(()=>{if(Object.keys(S.pubd).length)writeMine()},800);return}
+  const k=t.dataset&&t.dataset.k;if(!k||cur==='home')return;
+  let v=t.value;if(t.dataset.t!=='s'){v=parseFloat(v);if(!fin(v))v=0}
+  setPath(st(cur),k,v);save();CHAPS[cur].calc(st(cur));paintShare();
+});
+document.addEventListener('change',e=>{const t=e.target;if(t.tagName==='SELECT'&&t.dataset.k&&CHAPS[cur]&&CHAPS[cur].selRerender){setPath(st(cur),t.dataset.k,t.value);save();paintMine();paintShare()}});
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g){go(g.dataset.go);return}
+  if(e.target.id==='smp'){S.sample=!S.sample;e.target.setAttribute('aria-pressed',S.sample);save();if(cur==='home')renderHome();else paintGroup();return}
+  const a=e.target.closest('[data-act]');if(!a||cur==='home'&&!a.dataset.home)return;
+  const act=a.dataset.act,c=cur;
+  if(act==='share'){S.pubd[c]=CHAPS[c].pub(st(c));save();renderTabs();paintShare();writeMine().then(()=>{toast('공유했습니다')});return}
+  if(act==='unshare'){delete S.pubd[c];save();renderTabs();paintShare();paintGroup();writeMine();return}
+  if(act==='tab'){const s=st(c);s.tab=a.dataset.v;save();paintMine();return}
+  const r=CHAPS[c].act&&CHAPS[c].act(act,a,st(c));if(r!==false){save();paintMine();paintShare()}
+});
+$('#nick').value=S.nick;$('#smp').setAttribute('aria-pressed',S.sample);
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>go(cur));
+new MutationObserver(()=>go(cur)).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h&&h!==cur)go(h)});
+
+/* ---------- 홈 ---------- */
+function renderHome(){
+  const people=Object.entries(rows).map(([id,d])=>({id,nick:d.nick||'익명',n:CHAPKEYS.filter(c=>d[c]).length,me:id===uid})).sort((a,b)=>b.n-a.n);
+  const cnt=CHAPKEYS.map(c=>(db&&uid?Object.values(rows).filter(d=>d&&d[c]).length:(S.pubd[c]?1:0)));
+  const sampleN=S.sample?8:0;
+  app.innerHTML=`<section class="hero"><h1>월급의 셈법<br><span>Payday Math</span></h1>
+  <p>월급이 들어오고, 세금이 빠지고, 저축이 쌓이고, 소비로 나가는 흐름을 직접 계산해 보는 성인 대상 경제 프로그램입니다. 교재 <i>Money Math Workbook</i>(NWT Literacy Council)의 31개 워크시트를 11개 챕터로 묶었고, 챕터마다 내 숫자를 넣어 계산한 뒤 다른 참가자의 결과와 나란히 비교합니다.</p></section>
+  <div class="grid"><div class="panel"><h3>진행 현황 · 챕터별 공유 인원</h3>${cv('hcnt','tall')}<p class="hint" style="margin-top:8px">막대는 해당 챕터에서 「내 결과 공유하기」를 누른 사람 수입니다.</p></div>
+  <div class="panel group"><h3>참여자 <span class="live ${liveState==='on'?'on':''}"><i></i>${liveState==='on'?'실시간':'나 혼자'}</span></h3>
+  <div class="people" id="ppl">${people.length?people.map(p=>`<span class="pp ${p.me?'me':''}">${esc(p.nick)}<s>${p.n}/${CHAPKEYS.length}</s></span>`).join(''):'<div class="empty" style="width:100%">아직 공유한 참가자가 없습니다. 챕터 1부터 시작해 보세요.</div>'}</div>
+  <p class="hint" style="margin-top:12px">진행 방법: ① 챕터를 열고 내 숫자로 계산 ② 「내 결과 공유하기」 ③ 오른쪽 차트에서 다른 참가자와 비교. 공유되는 값은 비율·구간 같은 요약뿐이며, 닉네임만 표시됩니다.</p></div></div>
+  <h3 style="margin:26px 0 12px;font-size:13px;letter-spacing:.12em;color:var(--mute)">11개 챕터</h3>
+  <div class="curr">${ORDER.map((c,i)=>{const h=CHAPS[c];return `<button class="cc" data-go="${c}"><span class="n">${String(h.no).padStart(2,'0')}</span><b>${h.title}</b><span>${h.ref}</span><span class="st">${S.pubd[c]?'내 결과 공유함 ✓':'&nbsp;'}</span></button>`}).join('')}</div>`;
+  mk('hcnt','bar',{labels:ORDER.map(c=>CHAPS[c].no+'. '+CHAPS[c].short),datasets:[{label:'공유 인원',data:cnt.map((n,i)=>n+sampleN),backgroundColor:cssv('--accent'),borderRadius:6}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{precision:0,stepSize:1,color:cssv('--mute')},beginAtZero:true}}});
+}
+const CHAPKEYS=[];
+function reg(id,o){CHAPS[id]=o;ORDER.push(id);CHAPKEYS.push(id)}
+
+const meRow=l=>l.find(x=>x.me);
+const smp=(seed,n,fn)=>{const r=rng(seed);return Array.from({length:n},(_,i)=>fn(r,i))};
+const rr=(r,a,b)=>a+(b-a)*r();
+const lab=l=>l.map(x=>x.me?x.nick+' (나)':x.nick);
+const hiCols=(l,base,hi)=>l.map(x=>x.me?hi:base);
+
+/* ===== 1. 예산 한눈에 ===== */
+const CAT1=[['housing','주거·공과금'],['food','식비'],['transport','교통'],['cloth','의류'],['extra','기타·여가']];
+const col1=()=>{const P=PAL();return [P[0],P[1],P[4],P[3],P[5],P[2]]};
+reg('c1',{no:1,short:'예산 한눈에',title:'내 월급은 어디로 가는가',ref:'교재 Worksheet #1–3 · p.6–11',
+intro:'소득과 지출을 한 화면에 놓고, 각 항목이 소득의 몇 %인지 계산합니다. 교재의 Mary처럼 지출이 소득을 넘으면 매달, 그리고 1년에 얼마나 모자라는지 바로 보입니다.',
+formula:['비율(%) = 항목 ÷ 소득 × 100','남는 돈 = 소득 − 지출 합계'],
+def:()=>({inc:2500000,it:{housing:1250000,food:500000,transport:100000,cloth:100000,extra:250000}}),
+html:s=>`<div class="note">기본값은 교재 예시(소득 $2,500 · 주거 $1,250 · 식비 $500 …)를 1,000배로 옮긴 값입니다. 내 숫자로 바꿔 보세요.</div>
+<div class="row">${fld('inc','월 소득 (실수령)',s.inc,{u:'원',w:'w2'})}</div>
+<div class="row">${CAT1.map(([k,l])=>fld('it.'+k,l,s.it[k],{u:'원'})).join('')}</div>
+<div class="kpis">${kpi('c1a','월 지출 합계')}${kpi('c1b','남는 돈 (월)','hi')}${kpi('c1c','남는 돈 (연)')}${kpi('c1d','저축률')}</div>
+<div class="meter" title="저축률 (눈금: 20%)"><i id="c1m" style="width:0"></i><u style="left:50%"></u></div><div class="hint">눈금은 소득의 20%. 막대 끝이 눈금을 넘으면 20% 이상 저축 중입니다.</div>
+<div id="c1n"></div>${cv('c1ch')}
+<div class="tw"><table><thead><tr><th>항목</th><th>금액</th><th>계산 (항목 ÷ 소득 × 100)</th><th>비율</th></tr></thead><tbody id="c1t"></tbody></table></div>`,
+calc(s){
+  const tot=sum(Object.values(s.it)),sav=s.inc-tot,rate=s.inc>0?sav/s.inc*100:NaN;
+  put('c1a',fW(tot));put('c1b',fW(sav),sav<0?'neg':'pos');put('c1c',fW(sav*12),sav<0?'neg':'pos');put('c1d',fP(rate),sav<0?'neg':'');
+  const m=$('#c1m');if(m)m.style.width=Math.max(0,Math.min(100,rate/40*100))+'%';
+  $('#c1n').innerHTML=sav<0?`<div class="note bad">교재의 Mary처럼 <b>매달 ${fW(-sav)}</b>, 1년이면 <b>${fW(-sav*12)}</b> 예산을 넘고 있습니다. 챕터 2에서 줄일 곳을 찾아보세요.</div>`:`<div class="note ok">매달 <b>${fW(sav)}</b>이 남습니다. 소득의 ${fP(rate)}를 저축할 수 있는 구조입니다.</div>`;
+  const C=col1(),labs=CAT1.map(x=>x[1]),vals=CAT1.map(x=>s.it[x[0]]);if(sav>0){labs.push('저축');vals.push(sav)}
+  mk('c1ch','doughnut',{labels:labs,datasets:[{data:vals,backgroundColor:C.slice(0,vals.length),borderColor:cssv('--surface'),borderWidth:2}]},{plugins:{legend:{position:'right',labels:{boxWidth:10,color:cssv('--mute')}},tooltip:{callbacks:{label:c=>`${c.label}: ${fW(c.raw)} (${fP(s.inc?c.raw/s.inc*100:0)})`}}}});
+  $('#c1t').innerHTML=CAT1.map(([k,l])=>`<tr><td>${l}</td><td class="num">${fN(s.it[k])}</td><td class="num">${fN(s.it[k])} ÷ ${fN(s.inc)} = ${fN(s.inc?s.it[k]/s.inc:0,2)} → ×100</td><td class="num"><b>${fP(s.inc?s.it[k]/s.inc*100:0)}</b></td></tr>`).join('')+`<tr class="tot"><td>저축 (남는 돈)</td><td class="num">${fN(sav)}</td><td class="num">${fN(s.inc)} − ${fN(tot)}</td><td class="num">${fP(rate)}</td></tr>`;
+},
+pub(s){const i=s.inc||1,p={};CAT1.forEach(([k])=>p[k]=r2(s.it[k]/i*100));p.sav=r2((s.inc-sum(Object.values(s.it)))/i*100);return p},
+sample:()=>smp(11,8,r=>{const p={housing:rr(r,22,50),food:rr(r,12,26),transport:rr(r,4,12),cloth:rr(r,3,9),extra:rr(r,5,16)};p.sav=100-sum(Object.values(p));Object.keys(p).forEach(k=>p[k]=r2(p[k]));return p}),
+group(l,el){
+  const keys=[...CAT1.map(x=>x[0]),'sav'],names=[...CAT1.map(x=>x[1]),'저축'],P=PAL(),m=meRow(l);
+  const av=keys.map(k=>avg(l.map(x=>x.d[k])));const sr=l.map(x=>x.d.sav);
+  const below=m?sr.filter(v=>v<m.d.sav).length/Math.max(1,sr.length-1)*100:NaN;
+  el.innerHTML=`<div class="kpis">${kpi('g1a','평균 저축률')}${kpi('g1b','평균 주거비 비중')}${kpi('g1c','저축률 중간값')}${m?kpi('g1d','내 저축률 순위'):''}</div>
+  <div><div class="sub">나 vs 참가자 평균 (소득 대비 %)</div>${cv('g1x','tall')}</div><div><div class="sub">저축률 분포 (명)</div>${cv('g1y','short')}</div>`;
+  put('g1a',fP(av[5]));put('g1b',fP(av[0]));put('g1c',fP(median(sr)));if(m)put('g1d','상위 '+fN(100-below,0)+'%');
+  const ds=[{label:'참가자 평균',data:av,backgroundColor:cssv('--mute'),borderRadius:4}];if(m)ds.push({label:'나',data:keys.map(k=>m.d[k]),backgroundColor:P[0],borderRadius:4});
+  mk('g1x','bar',{labels:names,datasets:ds},{o:{indexAxis:'y'},tip:{label:c=>`${c.dataset.label}: ${fP(c.raw)}`}});
+  const bins=[['0% 미만',v=>v<0],['0–10%',v=>v>=0&&v<10],['10–20%',v=>v>=10&&v<20],['20–30%',v=>v>=20&&v<30],['30% 이상',v=>v>=30]];
+  const mb=m?bins.findIndex(b=>b[1](m.d.sav)):-1;
+  mk('g1y','bar',{labels:bins.map(b=>b[0]),datasets:[{data:bins.map(b=>sr.filter(b[1]).length),backgroundColor:bins.map((b,i)=>i===mb?P[0]:P[5]),borderRadius:6}]},{legend:false,scales:{y:{ticks:{precision:0,stepSize:1},beginAtZero:true}}});
+}});
+
+/* ===== 2. 새는 돈 막기 ===== */
+const CAT2=[['cafe','커피·음료'],['food','외식·배달'],['sub','구독·멤버십'],['shop','쇼핑·취미'],['vice','술·담배'],['etc','기타']];
+const an2=r=>(r.p-r.np)*r.t*(r.u==='w'?52:12);
+reg('c2',{no:2,short:'새는 돈 막기',title:'작은 습관의 1년치 값',ref:'교재 Worksheet #4 · p.12–13',
+intro:'하루 2.5달러 커피도 주 5일 × 52주를 곱하면 650달러입니다. 줄이고 싶은 지출을 적으면 1년 절감액이 계산되고, 그 돈을 10년 모았을 때의 모습까지 그려집니다.',
+formula:['연 절감액 = (현재 단가 − 줄인 후 단가) × 횟수 × 주수(52) 또는 월수(12)'],
+def:()=>({goal:150000,rows:[{n:'아침 커피',cat:'cafe',p:4500,np:0,t:5,u:'w'},{n:'안 가는 헬스장',cat:'sub',p:85000,np:0,t:1,u:'m'},{n:'금요일 외식 점심',cat:'food',p:18000,np:0,t:1,u:'w'},{n:'큰 라떼 → 작은 라떼',cat:'cafe',p:6000,np:4000,t:5,u:'w'}]}),
+html:s=>`<div class="tw"><table><thead><tr><th>항목</th><th>분류</th><th>현재 단가</th><th>줄인 후</th><th>횟수</th><th>단위</th><th>연 절감</th><th></th></tr></thead><tbody>${s.rows.map((r,i)=>`<tr><td><input class="t" data-k="rows.${i}.n" data-t="s" value="${esc(r.n)}" style="min-width:130px"></td><td><select data-k="rows.${i}.cat" data-t="s">${CAT2.map(([v,t])=>`<option value="${v}" ${v===r.cat?'selected':''}>${t}</option>`).join('')}</select></td><td><input data-k="rows.${i}.p" type="number" value="${r.p}"></td><td><input data-k="rows.${i}.np" type="number" value="${r.np}"></td><td><input data-k="rows.${i}.t" type="number" value="${r.t}" style="min-width:50px"></td><td><select data-k="rows.${i}.u" data-t="s"><option value="w" ${r.u==='w'?'selected':''}>/주</option><option value="m" ${r.u==='m'?'selected':''}>/월</option></select></td><td class="num" id="c2r${i}">–</td><td><button class="btn sm ghost" data-act="del" data-i="${i}" aria-label="삭제">✕</button></td></tr>`).join('')}</tbody></table></div>
+<div class="row"><button class="btn" data-act="add" ${s.rows.length>=8?'disabled':''}>+ 항목 추가</button>${fld('goal','월 절감 목표',s.goal,{u:'원'})}</div>
+<div class="kpis">${kpi('c2a','연 절감 합계','hi')}${kpi('c2b','월 환산')}${kpi('c2c','목표 달성률')}${kpi('c2d','10년 누적')}</div>
+<div class="meter"><i id="c2m" style="width:0;background:var(--teal)"></i><u style="left:100%;margin-left:-2px"></u></div>
+<div class="sub">항목별 연 절감액</div>${cv('c2ch','short')}
+<div class="sub">절감액을 10년간 모으면 (연 3% 운용 가정)</div>${cv('c2ln')}`,
+act(a,el,s){if(a==='add'){s.rows.push({n:'새 항목',cat:'etc',p:0,np:0,t:1,u:'w'})}else if(a==='del'){s.rows.splice(+el.dataset.i,1)}else return false},
+calc(s){
+  const an=s.rows.map(an2),tot=sum(an),P=PAL();
+  an.forEach((v,i)=>put('c2r'+i,fN(v)));
+  put('c2a',fW(tot));put('c2b',fW(tot/12));const gp=s.goal>0?tot/12/s.goal*100:NaN;put('c2c',fP(gp,0),gp>=100?'pos':'');
+  const m=$('#c2m');if(m)m.style.width=Math.min(100,gp||0)+'%';
+  const yrs=Array.from({length:10},(_,i)=>i+1),cum=yrs.map(y=>tot*y),inv=yrs.map(y=>tot*(Math.pow(1.03,y)-1)/.03);
+  put('c2d',fW(inv[9]));
+  mk('c2ch','bar',{labels:s.rows.map(r=>r.n),datasets:[{data:an,backgroundColor:an.map(v=>v>=0?P[2]:P[3]),borderRadius:5}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{callback:wonTick}}},tip:{label:c=>fW(c.raw)}});
+  mk('c2ln','line',{labels:yrs.map(y=>y+'년'),datasets:[{label:'그대로 모으면',data:cum,borderColor:P[5],backgroundColor:P[5],tension:.2,pointRadius:2},{label:'연 3%로 불리면',data:inv,borderColor:P[0],backgroundColor:P[0],tension:.2,pointRadius:2}]},{scales:{y:{ticks:{callback:wonTick}}},tip:{label:c=>`${c.dataset.label}: ${fW(c.raw)}`}});
+},
+pub(s){const cats={};s.rows.forEach(r=>{cats[r.cat]=Math.round((cats[r.cat]||0)+an2(r))});const tot=sum(s.rows.map(an2));return{tot:Math.round(tot),gp:Math.round(s.goal>0?tot/12/s.goal*100:0),cats}},
+sample:()=>smp(22,8,r=>{const cats={};CAT2.forEach(([k])=>{if(r()>.4)cats[k]=Math.round(rr(r,100,900))*1000});const tot=sum(Object.values(cats));return{tot,gp:Math.round(tot/12/150000*100),cats}}),
+group(l,el){
+  const P=PAL(),tot=sum(l.map(x=>x.d.tot)),m=meRow(l),sorted=[...l].sort((a,b)=>b.d.tot-a.d.tot);
+  const ct=CAT2.map(([k])=>sum(l.map(x=>x.d.cats[k]||0)));
+  el.innerHTML=`<div class="kpis">${kpi('g2a','모두의 연 절감 합계','hi')}${kpi('g2b','1인 평균 (연)')}${kpi('g2c','목표 달성자')}</div>
+  <div><div class="sub">어디서 줄이려 할까 (분류별 합계)</div>${cv('g2x','short')}</div><div><div class="sub">참가자별 연 절감액</div>${cv('g2y','tall')}</div>`;
+  put('g2a',fW(tot));put('g2b',fW(avg(l.map(x=>x.d.tot))));put('g2c',l.filter(x=>x.d.gp>=100).length+'명 / '+l.length+'명');
+  mk('g2x','bar',{labels:CAT2.map(x=>x[1]),datasets:[{data:ct,backgroundColor:P[1],borderRadius:5}]},{legend:false,scales:{y:{ticks:{callback:wonTick}}},tip:{label:c=>fW(c.raw)}});
+  mk('g2y','bar',{labels:lab(sorted),datasets:[{data:sorted.map(x=>x.d.tot),backgroundColor:sorted.map(x=>x.me?P[0]:P[2]),borderRadius:5}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{callback:wonTick}}},tip:{label:c=>fW(c.raw)}});
+}});
+
+/* ===== 3. 근무시간과 급여 ===== */
+const hm=v=>{if(!v)return null;const [h,m]=v.split(':').map(Number);return h+(m||0)/60};
+const span=(a,b)=>{const x=hm(a),y=hm(b);if(x==null||y==null)return 0;let d=y-x;if(d<0)d+=24;return d};
+const DAYS=['월','화','수','목','금','토','일'];
+const tc0=[['06:00','09:00','11:00','13:00'],['07:00','10:00','11:00','16:00'],['06:00','10:00','12:00','15:00'],['09:00','12:00','15:00','19:00'],['10:00','15:00','17:00','21:00'],['','','',''],['06:00','13:00','16:00','18:00']];
+const PT=[['sal','연봉·월급 환산'],['pc','성과급(건당)'],['cm','수수료율'],['mix','시급+수수료']];
+reg('c3',{no:3,short:'시간과 급여',title:'일한 시간이 급여가 되기까지',ref:'교재 Worksheet #5, #7, #8 · p.14–26',
+intro:'교재의 Hannah처럼 쪼개 일한 근무표를 채우면 정규 40시간과 연장 시간이 나뉘고, 팁까지 더한 실질 시급이 나옵니다. 급여가 월급·건당·수수료로 나뉘는 경우의 계산기도 함께 있습니다.',
+formula:['주급 = 정규시간 × 시급 + 연장시간 × 시급 × 1.5','실질 시급 = (급여 + 팁) ÷ 총 근무시간'],
+def:()=>({tab:'card',rate:15000,otm:1.5,tip:30000,tc:tc0.map(r=>({a:r[0],b:r[1],c:r[2],e:r[3]})),pt:'sal',
+ x:{sal:{amt:3500000,per:'m'},pc:{rate:250000,n:5,mat:30000,hrs:20,tgt:1040000},cm:{sales:5780000,rate:3.1,pay:179180},mix:{rate:12250,hrs:30,sales:2319750,pct:8,tgt:733500}}}),
+html(s){
+  const top=segTabs(s.tab,[['card','타임카드'],['type','급여 유형 계산기']]);
+  if(s.tab==='type'){
+    const x=s.x;let f='';
+    if(s.pt==='sal')f=`<div class="row">${fld('x.sal.amt','금액',x.sal.amt,{u:'원'})}${sel('x.sal.per','기준',x.sal.per,[['m','월급'],['y','연봉']])}</div><div class="kpis">${kpi('p1','주급 (÷52)')}${kpi('p2','월급')}${kpi('p3','연봉')}${kpi('p4','시급 (주 40시간)')}</div>`;
+    if(s.pt==='pc')f=`<p class="hint">교재 예: 모카신 한 켤레 $250, 제작 20시간, 재료비 $30, 월 5켤레 → 월 $1,100, 시급 $11.</p><div class="row">${fld('x.pc.rate','건당 단가',x.pc.rate,{u:'원'})}${fld('x.pc.n','월 제작 수',x.pc.n,{u:'개'})}${fld('x.pc.mat','건당 재료비',x.pc.mat,{u:'원'})}${fld('x.pc.hrs','건당 시간',x.pc.hrs,{u:'시간'})}${fld('x.pc.tgt','목표 월 소득',x.pc.tgt,{u:'원'})}</div><div class="kpis">${kpi('p1','월 순소득')}${kpi('p2','시급')}${kpi('p3','연 소득')}${kpi('p4','목표까지 필요한 개수')}</div>`;
+    if(s.pt==='cm')f=`<p class="hint">교재 예: 5,780달러 팔고 179.18달러 받았다면 수수료율은 3.1%.</p><div class="row">${fld('x.cm.sales','판매액',x.cm.sales,{u:'원'})}${fld('x.cm.rate','수수료율',x.cm.rate,{u:'%'})}${fld('x.cm.pay','실제 받은 수수료',x.cm.pay,{u:'원'})}</div><div class="kpis">${kpi('p1','수수료율로 계산한 급여')}${kpi('p2','받은 금액으로 역산한 수수료율')}</div>`;
+    if(s.pt==='mix')f=`<p class="hint">교재 예: 시급 $12.25 + 판매액의 8% (30시간 · 판매 $2,319.75).</p><div class="row">${fld('x.mix.rate','시급',x.mix.rate,{u:'원'})}${fld('x.mix.hrs','근무시간',x.mix.hrs,{u:'시간'})}${fld('x.mix.sales','판매액',x.mix.sales,{u:'원'})}${fld('x.mix.pct','수수료율',x.mix.pct,{u:'%'})}${fld('x.mix.tgt','목표 주급',x.mix.tgt,{u:'원'})}</div><div class="kpis">${kpi('p1','이번 주 급여')}${kpi('p2','목표 달성에 필요한 판매액')}</div>`;
+    return top+`<div class="seg">${PT.map(([v,t])=>`<button aria-pressed="${s.pt===v}" data-act="pt" data-v="${v}">${t}</button>`).join('')}</div>`+f;
+  }
+  return top+`<div class="row">${fld('rate','시급',s.rate,{u:'원'})}${fld('otm','연장 가산',s.otm,{u:'배',step:'0.1'})}${fld('tip','하루 팁',s.tip,{u:'원'})}</div>
+  <div class="tw"><table><thead><tr><th>요일</th><th>출근</th><th>퇴근</th><th>출근</th><th>퇴근</th><th>시간</th></tr></thead><tbody>${s.tc.map((r,i)=>`<tr><td>${DAYS[i]}</td>${['a','b','c','e'].map(k=>`<td><input type="time" data-t="s" data-k="tc.${i}.${k}" value="${r[k]}"></td>`).join('')}<td class="num" id="c3h${i}">0</td></tr>`).join('')}</tbody></table></div>
+  <div class="kpis">${kpi('c3a','총 근무시간')}${kpi('c3b','연장 시간')}${kpi('c3c','주급 (세전)','hi')}${kpi('c3d','팁 합계')}${kpi('c3e','실질 시급')}</div>
+  <div class="tw"><table><thead><tr><th>기간</th><th>급여</th><th>급여 + 팁</th></tr></thead><tbody id="c3p"></tbody></table></div>
+  <div class="sub">요일별 근무시간 (점선: 하루 8시간)</div>${cv('c3ch','short')}`;
+},
+act(a,el,s){if(a==='pt'){s.pt=el.dataset.v}else return false},
+calc(s){
+  if(s.tab==='type'){const x=s.x;
+    if(s.pt==='sal'){const yr=x.sal.per==='m'?x.sal.amt*12:x.sal.amt,wk=yr/52;put('p1',fW(wk));put('p2',fW(yr/12));put('p3',fW(yr));put('p4',fW(wk/40))}
+    if(s.pt==='pc'){const net=(x.pc.rate-x.pc.mat)*x.pc.n,h=x.pc.hrs*x.pc.n;put('p1',fW(net));put('p2',fW(h?net/h:NaN));put('p3',fW(net*12));put('p4',fN(Math.ceil(x.pc.tgt/Math.max(1,x.pc.rate-x.pc.mat)))+'개')}
+    if(s.pt==='cm'){put('p1',fW(x.cm.sales*x.cm.rate/100));put('p2',fP(x.cm.sales?x.cm.pay/x.cm.sales*100:NaN,2))}
+    if(s.pt==='mix'){const m=x.mix;put('p1',fW(m.rate*m.hrs+m.sales*m.pct/100));put('p2',fW(m.pct?(m.tgt-m.rate*m.hrs)/(m.pct/100):NaN))}
+    return}
+  const hs=s.tc.map(r=>span(r.a,r.b)+span(r.c,r.e));hs.forEach((h,i)=>put('c3h'+i,fN(h,1)));
+  const tot=sum(hs),reg=Math.min(40,tot),ot=Math.max(0,tot-40),pay=reg*s.rate+ot*s.rate*s.otm,days=hs.filter(h=>h>0).length,tips=days*s.tip,eff=tot?(pay+tips)/tot:NaN;
+  put('c3a',fN(tot,1)+'시간');put('c3b',fN(ot,1)+'시간',ot>0?'neg':'');put('c3c',fW(pay));put('c3d',fW(tips));put('c3e',fW(eff));
+  $('#c3p').innerHTML=[['1주',1],['2주',2],['4주',4],['1년 (52주)',52]].map(([l,n])=>`<tr><td>${l}</td><td class="num">${fW(pay*n)}</td><td class="num">${fW((pay+tips)*n)}</td></tr>`).join('');
+  const P=PAL();
+  mk('c3ch','bar',{labels:DAYS,datasets:[{type:'bar',label:'근무시간',data:hs,backgroundColor:hs.map(h=>h>8?P[3]:P[0]),borderRadius:5},{type:'line',label:'8시간',data:DAYS.map(()=>8),borderColor:cssv('--mute'),borderDash:[5,4],pointRadius:0}]},{legend:false});
+},
+pub(s){const hs=s.tc.map(r=>span(r.a,r.b)+span(r.c,r.e)),tot=sum(hs),ot=Math.max(0,tot-40),pay=Math.min(40,tot)*s.rate+ot*s.rate*s.otm,days=hs.filter(h=>h>0).length;return{hrs:r2(tot),ot:r2(ot),eff:Math.round(tot?(pay+days*s.tip)/tot:0)}},
+sample:()=>smp(33,8,r=>{const hrs=r2(rr(r,24,58)),ot=Math.max(0,r2(hrs-40));return{hrs,ot,eff:Math.round(rr(r,11000,19000))}}),
+group(l,el){
+  const P=PAL(),sorted=[...l].sort((a,b)=>b.d.hrs-a.d.hrs);
+  el.innerHTML=`<div class="kpis">${kpi('g3a','평균 근무시간')}${kpi('g3b','연장근로 한 사람')}${kpi('g3c','평균 실질 시급')}</div><div><div class="sub">주간 근무시간 (정규 / 연장)</div>${cv('g3x','tall')}</div>${legend([[P[0],'정규 40시간까지'],[P[3],'연장']])}<div><div class="sub">실질 시급</div>${cv('g3y','short')}</div>`;
+  put('g3a',fN(avg(l.map(x=>x.d.hrs)),1)+'시간');put('g3b',l.filter(x=>x.d.ot>0).length+'명 / '+l.length+'명');put('g3c',fW(avg(l.map(x=>x.d.eff))));
+  mk('g3x','bar',{labels:lab(sorted),datasets:[{label:'정규',data:sorted.map(x=>x.d.hrs-x.d.ot),backgroundColor:P[0]},{label:'연장',data:sorted.map(x=>x.d.ot),backgroundColor:P[3]}]},{legend:false,o:{indexAxis:'y'},scales:{x:{stacked:true},y:{stacked:true}}});
+  const s2=[...l].sort((a,b)=>b.d.eff-a.d.eff);
+  mk('g3y','bar',{labels:lab(s2),datasets:[{data:s2.map(x=>x.d.eff),backgroundColor:s2.map(x=>x.me?P[0]:P[1]),borderRadius:4}]},{legend:false,scales:{y:{ticks:{callback:wonTick}}},tip:{label:c=>fW(c.raw)+'/시간'}});
+}});
+
+/* ===== 4. 명세서와 세금 ===== */
+const BR={kr:[[14e6,.06],[50e6,.15],[88e6,.24],[150e6,.35],[300e6,.38],[500e6,.40],[1000e6,.42],[Infinity,.45]],
+ caF:[[38832,.15],[77664,.22],[126264,.26],[Infinity,.29]],caN:[[36885,.059],[73771,.086],[119935,.122],[Infinity,.1405]]};
+function taxBy(br,inc){let prev=0,out=[],tot=0;for(const [top,rt] of br){const part=Math.max(0,Math.min(inc,top)-prev);out.push({from:prev,to:top,rt,inc:part,tax:part*rt});tot+=part*rt;prev=top;if(inc<=top)break}return{rows:out,tot}}
+function krCalc(g,ded){const tx=g*(1-ded/100),t=taxBy(BR.kr,tx),it=t.tot,lo=it*.1,pen=g*.045,hl=g*.03545,lt=hl*.1295,em=g*.009,all=it+lo+pen+hl+lt+em;return{tx,t,it,lo,pen,hl,lt,em,all,net:g-all,eff:g?all/g*100:0,itx:g?(it+lo)/g*100:0}}
+reg('c4',{no:4,short:'명세서와 세금',title:'세전 연봉에서 통장 잔액까지',ref:'교재 Worksheet #6, #9 · p.17–20, 27–29',
+intro:'세금은 소득 전체에 한 가지 세율이 붙는 게 아니라 구간마다 다른 세율이 붙습니다(누진). 연봉을 넣으면 구간별 세액, 4대보험, 실수령액이 명세서 형태로 나옵니다. 교재의 캐나다 2008년 세율로도 바꿔 볼 수 있습니다.',
+formula:['구간 세액 = (구간 안의 소득) × 그 구간 세율','실수령 = 총급여 − 소득세 − 지방소득세 − 4대보험'],
+def:()=>({sys:'kr',kg:36000000,ded:35,cg:45891,cpp:2150,ei:780}),
+selRerender:true,
+html(s){
+  const kr=s.sys==='kr';
+  return `${sel('sys','세율 체계',s.sys,[['kr','한국 (소득세 8구간 · 4대보험)'],['ca','교재 원본 (캐나다 연방 + NWT, 2008)']],{w:'w2'})}
+  ${kr?`<div class="row">${fld('kg','연봉 (세전)',s.kg,{u:'원',w:'w2'})}${fld('ded','과세표준 공제율',s.ded,{u:'%'})}</div><p class="hint">간이 계산입니다. 실제 과세표준은 근로소득공제·인적공제 등을 거쳐 정해지며, 여기서는 연봉의 일정 비율을 공제한다고 가정합니다. 4대보험은 근로자 부담 요율(국민연금 4.5%, 건강보험 3.545%, 장기요양 건강보험료의 12.95%, 고용 0.9%)이고 상·하한은 반영하지 않았습니다.</p>`
+  :`<div class="row">${fld('cg','연 소득 (CA$)',s.cg,{u:'$',w:'w2'})}${fld('cpp','연 C.P.P.',s.cpp,{u:'$'})}${fld('ei','연 E.I.',s.ei,{u:'$'})}</div><p class="hint">교재는 연방세와 NWT세를 과세소득 전체에 구간 적용합니다.</p>`}
+  <div class="kpis">${kpi('c4a','연 실수령','hi')}${kpi('c4b',kr?'월 실수령':'2주 실수령')}${kpi('c4c','총 공제율')}${kpi('c4d','세금 실효세율')}${kpi('c4e','한계세율 (구간 최상단)')}</div>
+  <div class="sub">내 연봉은 어디로 갔나</div>${cv('c4ch','short')}
+  <div class="sub">구간별 세액</div><div class="tw"><table><thead><tr><th>구간</th><th>세율</th><th>구간 내 소득</th><th>세액</th></tr></thead><tbody id="c4tb"></tbody></table></div>
+  <div class="sub">이번 달 급여명세서</div><div class="tw"><table><tbody id="c4st"></tbody></table></div>`},
+calc(s){
+  const kr=s.sys==='kr',P=PAL(),cur=kr?fW:fD;let g,items,rows,net,eff,itx,marg,per;
+  if(kr){g=s.kg;const c=krCalc(g,s.ded);rows=c.t.rows;marg=rows.length?rows[rows.length-1].rt*(1+.1)*100:0;
+    items=[['소득세',c.it],['지방소득세',c.lo],['국민연금',c.pen],['건강보험',c.hl],['장기요양',c.lt],['고용보험',c.em]];net=c.net;eff=c.eff;itx=c.itx;per=12}
+  else{g=s.cg;const f=taxBy(BR.caF,g),n=taxBy(BR.caN,g);
+    marg=(f.rows.length?f.rows[f.rows.length-1].rt:0)*100+(n.rows.length?n.rows[n.rows.length-1].rt:0)*100;
+    items=[['연방세',f.tot],['NWT세',n.tot],['C.P.P.',s.cpp],['E.I.',s.ei]];net=g-sum(items.map(x=>x[1]));eff=g?sum(items.map(x=>x[1]))/g*100:0;itx=g?(f.tot+n.tot)/g*100:0;per=26;
+    rows=[...f.rows.map(r=>Object.assign({},r,{tag:'연방 '})),...n.rows.map(r=>Object.assign({},r,{tag:'NWT '}))]}
+  put('c4a',cur(net));put('c4b',cur(net/per));put('c4c',fP(eff));put('c4d',fP(itx));put('c4e',fP(marg));
+  const C=[P[3],P[1],P[4],P[5],P[2],P[0]];
+  mk('c4ch','bar',{labels:['연봉'],datasets:[...items.map((x,i)=>({label:x[0],data:[x[1]],backgroundColor:C[i%6]})),{label:'실수령',data:[Math.max(0,net)],backgroundColor:cssv('--teal')}]},{o:{indexAxis:'y'},scales:{x:{stacked:true,max:g,ticks:{callback:kr?wonTick:v=>'$'+fN(v)}},y:{stacked:true}},tip:{label:c=>`${c.dataset.label}: ${cur(c.raw)} (${fP(g?c.raw/g*100:0)})`}});
+  const rg=v=>v===Infinity?'초과':kr?wonTick(v):'$'+fN(v);
+  $('#c4tb').innerHTML=rows.map(r=>`<tr><td>${r.tag||''}${rg(r.from)} ~ ${rg(r.to)}</td><td class="num">${fP(r.rt*100,r.rt*100%1?2:0)}</td><td class="num">${cur(r.inc)}</td><td class="num"><b>${cur(r.tax)}</b></td></tr>`).join('');
+  const m=net/per,pp=g/per,line=(a,b,c='')=>`<tr class="${c}"><td>${a}</td><td class="num">${b}</td></tr>`;
+  $('#c4st').innerHTML=line('총 급여 (월)',cur(pp))+items.map(x=>line('− '+x[0],cur(x[1]/per))).join('')+line('공제 합계',cur(sum(items.map(x=>x[1]))/per),'tot')+line('실수령액',cur(m),'tot');
+},
+pub(s){if(s.sys==='kr'){const c=krCalc(s.kg,s.ded);return{m:'kr',band:Math.round(s.kg/5e6)*500,eff:r2(c.eff),itx:r2(c.itx)}}const f=taxBy(BR.caF,s.cg).tot+taxBy(BR.caN,s.cg).tot+s.cpp+s.ei;return{m:'ca',band:0,eff:r2(s.cg?f/s.cg*100:0),itx:0}},
+sample:()=>smp(44,8,r=>{const band=Math.round(rr(r,2500,9500)/500)*500,c=krCalc(band*1e4,35);return{m:'kr',band,eff:r2(c.eff),itx:r2(c.itx)}}),
+group(l,el){
+  const P=PAL(),k=l.filter(x=>x.d.m==='kr'),m=meRow(k);
+  el.innerHTML=`<div class="kpis">${kpi('g4a','평균 총 공제율')}${kpi('g4b','평균 소득세 실효세율')}${kpi('g4c','한국 기준 참가자')}</div><div><div class="sub">연봉이 높을수록 공제율은 어떻게 변할까</div>${cv('g4x','tall')}</div><p class="hint">점은 참가자(연봉은 500만 원 단위로 올림·내림한 구간), 선은 공제율 35%로 가정한 계산 곡선입니다. 교재 원본(캐나다) 기준 입력은 이 차트에서 제외됩니다.</p>`;
+  put('g4a',fP(avg(k.map(x=>x.d.eff))));put('g4b',fP(avg(k.map(x=>x.d.itx))));put('g4c',k.length+'명');
+  const curve=[];for(let x=1000;x<=15000;x+=500)curve.push({x,y:r2(krCalc(x*1e4,35).eff)});
+  const ds=[{label:'계산 곡선',data:curve,showLine:true,pointRadius:0,borderColor:cssv('--mute'),borderWidth:2,tension:.2},{label:'참가자',data:k.filter(x=>!x.me).map(x=>({x:x.d.band,y:x.d.eff})),backgroundColor:P[2],pointRadius:6}];
+  if(m)ds.push({label:'나',data:[{x:m.d.band,y:m.d.eff}],backgroundColor:P[0],pointRadius:9,pointStyle:'rectRot'});
+  mk('g4x','scatter',{datasets:ds},{scales:{x:{type:'linear',title:{display:true,text:'연봉 (만원)'},ticks:{callback:v=>fN(v)}},y:{title:{display:true,text:'총 공제율 (%)'},beginAtZero:true}},tip:{label:c=>`연봉 ${fN(c.raw.x)}만원 · 공제율 ${fP(c.raw.y)}`}});
+}});
+
+const quiz=(id,q,opts,ans,right,expl)=>`<div class="opts"><p><b>${q}</b></p>${opts.map(([v,t])=>`<button class="opt ${ans?(v===right?'right':v===ans?'wrong':''):''}" ${ans?'disabled':''} data-act="${id}" data-v="${v}">${t}</button>`).join('')}</div>${ans?`<div class="note ${ans===right?'ok':'bad'}">${ans===right?'정답입니다. ':'아쉽습니다. '}${expl} <button class="btn sm ghost" data-act="qr" data-v="${id}">다시 풀기</button></div>`:''}`;
+const quizAct=(a,el,s)=>{if(/^q\d$/.test(a)){s[a]=el.dataset.v;return true}if(a==='qr'){s[el.dataset.v]=null;return true}return false};
+const countBy=(l,k)=>{const m={};l.forEach(x=>{const v=x.d[k];if(v)m[v]=(m[v]||0)+1});return m};
+
+/* ===== 5. 수수료의 함정 ===== */
+reg('c5',{no:5,short:'수수료의 함정',title:'급할 때 내는 비싼 수수료',ref:'교재 Worksheet #10–11 · p.30–33',
+intro:'수표를 현금으로 바꿔 주는 가게와 세금 환급금을 미리 주는 「캐시백」 서비스는 편리한 만큼 수수료가 큽니다. 정액 수수료와 비율 수수료가 섞이면 어느 쪽이 싼지 직감으로 맞히기 어렵습니다. 먼저 골라 보고, 계산으로 확인하세요.',
+formula:['수수료 = 정액 + 금액 × 비율','캐시백 수수료 = 앞 300달러 × 15% + 나머지 × 5%'],
+def:()=>({tab:'chq',amt:1250,fA:3.99,pA:3.99,pB:4.05,per:12,q1:null,rf:2300,cap:300,t1:15,t2:5,reg:90,q2:null}),
+html(s){
+  const top=segTabs(s.tab,[['chq','수표 현금화'],['ref','환급금 캐시백']]);
+  if(s.tab==='ref')return top+`<div class="row">${fld('rf','환급액',s.rf,{u:'$'})}${fld('cap','앞 구간',s.cap,{u:'$'})}${fld('t1','앞 구간 수수료율',s.t1,{u:'%'})}${fld('t2','나머지 수수료율',s.t2,{u:'%'})}${fld('reg','일반 신고 수수료',s.reg,{u:'$'})}</div>
+  <div class="kpis">${kpi('c5a','캐시백 수수료')}${kpi('c5b','받는 돈','hi')}${kpi('c5c','실효 수수료율')}${kpi('c5d','일반 신고와 차이')}</div>${cv('c5ch','short')}<p class="hint">선: 환급액이 커질수록 캐시백의 실효 수수료율은 낮아지고, 일반 신고 수수료율(정액 ÷ 환급액)은 더 빠르게 낮아집니다.</p>
+  ${quiz('q2','Mary Rose는 1,600달러를 돌려받습니다. 일반 신고 수수료는 90달러. 어느 쪽이 더 이득일까요?',[['cash','캐시백으로 지금 받는다'],['reg','일반 신고하고 기다린다']],s.q2,'reg','캐시백 수수료는 300×15% + 1,300×5% = 110달러로, 90달러보다 20달러 더 비쌉니다.')}`;
+  return top+`<div class="row">${fld('amt','수표 금액',s.amt,{u:'$'})}${fld('fA','A가게 정액',s.fA,{u:'$'})}${fld('pA','A가게 비율',s.pA,{u:'%'})}${fld('pB','B가게 비율(정액 없음)',s.pB,{u:'%'})}${fld('per','연 이용 횟수',s.per,{u:'회'})}</div>
+  <div class="kpis">${kpi('c5a','A가게 수수료')}${kpi('c5b','B가게 수수료')}${kpi('c5c','더 싼 곳','hi')}${kpi('c5d','A가게 연 수수료')}</div>
+  <div id="c5n"></div>${cv('c5ch','short')}
+  ${quiz('q1','Lisa는 1,250달러 수표를 현금화합니다. A는 3.99달러 + 3.99%, B는 4.05%만 받습니다. 어디가 더 쌀까요?',[['A','A가게 (정액 3.99달러 + 3.99%)'],['B','B가게 (4.05%)']],s.q1,'B','1,250달러라면 A는 53.87달러, B는 50.63달러입니다. 정액 수수료까지 더하면 A가 더 비쌉니다.')}`;
+},
+act:quizAct,
+calc(s){
+  const P=PAL();
+  if(s.tab==='ref'){const fee=s.rf>s.cap?s.cap*s.t1/100+(s.rf-s.cap)*s.t2/100:s.rf*s.t1/100;put('c5a',fD(fee));put('c5b',fD(s.rf-fee));put('c5c',fP(s.rf?fee/s.rf*100:NaN,2));const d=fee-s.reg;put('c5d',(d>0?'+':'−')+fD(Math.abs(d)),d>0?'neg':'pos');
+    const f=a=>a>s.cap?s.cap*s.t1/100+(a-s.cap)*s.t2/100:a*s.t1/100;const xs=[];for(let a=100;a<=Math.max(6000,s.rf*1.3);a+=100)xs.push(a);
+    mk('c5ch','scatter',{datasets:[{label:'캐시백 실효율',data:xs.map(a=>({x:a,y:f(a)/a*100})),showLine:true,pointRadius:0,borderColor:P[3],borderWidth:2},{label:'일반 신고 (정액÷환급액)',data:xs.map(a=>({x:a,y:s.reg/a*100})),showLine:true,pointRadius:0,borderColor:P[0],borderWidth:2},{label:'내 환급액',data:[{x:s.rf,y:fee/s.rf*100}],backgroundColor:P[1],pointRadius:7}]},{scales:{x:{type:'linear',title:{display:true,text:'환급액 ($)'}},y:{beginAtZero:true,title:{display:true,text:'실효 수수료율 (%)'}}},tip:{label:c=>`${c.dataset.label}: ${fP(c.raw.y,2)}`}});return}
+  const fa=s.fA+s.amt*s.pA/100,fb=s.amt*s.pB/100;put('c5a',fD(fa));put('c5b',fD(fb));put('c5c',fa<fb?'A가게':fb<fa?'B가게':'같음');put('c5d',fD(fa*s.per));
+  const be=s.pB>s.pA?s.fA/((s.pB-s.pA)/100):NaN;
+  $('#c5n').innerHTML=`<div class="note">${fin(be)?`손익분기 금액은 <b>${fD(be)}</b>입니다. 이보다 작은 수표는 B가게, 큰 수표는 A가게가 쌉니다.`:'B가게 비율이 A가게 이하라서 항상 B가게가 쌉니다.'} 은행 계좌로 받으면 이 수수료는 대부분 0원입니다 (연 ${fD(Math.min(fa,fb)*s.per)} 절감).</div>`;
+  const xs=[];for(let a=0;a<=Math.max(3000,s.amt*1.4);a+=100)xs.push(a);
+  mk('c5ch','scatter',{datasets:[{label:'A가게',data:xs.map(a=>({x:a,y:s.fA+a*s.pA/100})),showLine:true,pointRadius:0,borderColor:P[3],borderWidth:2},{label:'B가게',data:xs.map(a=>({x:a,y:a*s.pB/100})),showLine:true,pointRadius:0,borderColor:P[0],borderWidth:2},{label:'내 수표',data:[{x:s.amt,y:Math.min(fa,fb)}],backgroundColor:P[1],pointRadius:7}]},{scales:{x:{type:'linear',title:{display:true,text:'수표 금액 ($)'}},y:{beginAtZero:true,title:{display:true,text:'수수료 ($)'}}},tip:{label:c=>`${c.dataset.label}: ${fD(c.raw.y)}`}});
+},
+pub(s){return{q1:s.q1||'',q2:s.q2||'',yf:r2((s.fA+s.amt*s.pA/100)*s.per)}},
+sample:()=>smp(55,8,r=>({q1:r()<.45?'B':'A',q2:r()<.6?'reg':'cash',yf:r2(rr(r,60,640))})),
+group(l,el){
+  const P=PAL(),c1=countBy(l,'q1'),c2=countBy(l,'q2'),n1=sum(Object.values(c1)),n2=sum(Object.values(c2));
+  el.innerHTML=`<div class="kpis">${kpi('g5a','수표 퀴즈 정답률')}${kpi('g5b','캐시백 퀴즈 정답률')}${kpi('g5c','평균 연 수수료 (A가게)')}</div>
+  <div><div class="sub">수표 현금화, 어디가 쌀까 (명)</div>${cv('g5x','short')}</div><div><div class="sub">환급금 캐시백, 받을까 기다릴까 (명)</div>${cv('g5y','short')}</div>`;
+  put('g5a',n1?fP((c1.B||0)/n1*100,0):'–');put('g5b',n2?fP((c2.reg||0)/n2*100,0):'–');put('g5c',fD(avg(l.map(x=>x.d.yf))));
+  mk('g5x','bar',{labels:['A가게','B가게 (정답)'],datasets:[{data:[c1.A||0,c1.B||0],backgroundColor:[P[3],P[2]],borderRadius:6}]},{legend:false,scales:{y:{ticks:{precision:0,stepSize:1},beginAtZero:true}}});
+  mk('g5y','bar',{labels:['캐시백','일반 신고 (정답)'],datasets:[{data:[c2.cash||0,c2.reg||0],backgroundColor:[P[3],P[2]],borderRadius:6}]},{legend:false,scales:{y:{ticks:{precision:0,stepSize:1},beginAtZero:true}}});
+}});
+
+/* ===== 6. 저축의 힘 ===== */
+const fvm=(m,n,ra)=>{const i=ra/1200;return i?m*(Math.pow(1+i,n)-1)/i:m*n};
+reg('c6',{no:6,short:'저축의 힘',title:'매달 조금씩, 오래',ref:'교재 Worksheet #13–14 · p.38–41',
+intro:'월 5만 원은 작아 보여도 30년이면 수천만 원이 됩니다. 매달 저축액, 시작 나이, 이율을 넣으면 은퇴 시점 금액과 「5년 늦게 시작하면 잃는 금액」이 나옵니다. 교재의 저축 표는 연 약 1% 가정에서 그대로 재현됩니다.',
+formula:['적립 총액 = 월 저축 × 개월 수','만기 금액 = 월 저축 × ((1 + r/12)^개월 − 1) ÷ (r/12)'],
+def:()=>({mo:300000,age:30,ret:60,rate:1,goal:100000000}),
+html:s=>`<div class="row">${fld('mo','월 저축액',s.mo,{u:'원'})}${fld('age','시작 나이',s.age,{u:'세'})}${fld('ret','은퇴 나이',s.ret,{u:'세'})}${fld('rate','연 이율',s.rate,{u:'%',step:'0.1'})}${fld('goal','목표 금액',s.goal,{u:'원'})}</div>
+<div class="kpis">${kpi('c6a','낸 돈 합계')}${kpi('c6b','은퇴 시 금액','hi')}${kpi('c6c','이자 수익')}${kpi('c6d','5년 늦게 시작하면')}${kpi('c6e','목표까지')}</div>
+${cv('c6ch')}<div class="sub">교재 표: 기간별 저축 결과 (현재 이율 기준)</div><div class="tw"><table><thead><tr><th>기간</th><th>월 5만 원</th><th>월 10만 원</th><th>월 20만 원</th></tr></thead><tbody id="c6t"></tbody></table></div>`,
+calc(s){
+  const yrs=Math.max(0,s.ret-s.age),n=yrs*12,fv=fvm(s.mo,n,s.rate),dep=s.mo*n,late=fvm(s.mo,Math.max(0,yrs-5)*12,s.rate),P=PAL();
+  put('c6a',fW(dep));put('c6b',fW(fv));put('c6c',fW(fv-dep));put('c6d','−'+fW(fv-late),'neg');
+  let k=0;while(k<1200&&fvm(s.mo,k,s.rate)<s.goal)k++;put('c6e',s.mo<=0?'–':k>=1200?'100년 이상':`${fN(k/12,1)}년 (${s.age+Math.ceil(k/12)}세)`);
+  const ys=Array.from({length:yrs+1},(_,i)=>i);
+  mk('c6ch','line',{labels:ys.map(y=>s.age+y+'세'),datasets:[{label:'낸 돈',data:ys.map(y=>s.mo*y*12),borderColor:P[5],backgroundColor:P[5]+'33',fill:true,pointRadius:0,tension:.1},{label:'이자 포함',data:ys.map(y=>fvm(s.mo,y*12,s.rate)),borderColor:P[0],backgroundColor:P[0]+'33',fill:'-1',pointRadius:0,tension:.1}]},{scales:{y:{ticks:{callback:wonTick}},x:{ticks:{maxTicksLimit:10}}},tip:{label:c=>`${c.dataset.label}: ${fW(c.raw)}`}});
+  $('#c6t').innerHTML=[1,5,10,15,20,25,30,35,40].map(y=>`<tr><td>${y}년</td>${[5e4,1e5,2e5].map(m=>`<td class="num">${fN(fvm(m,y*12,s.rate))}</td>`).join('')}</tr>`).join('');
+},
+pub(s){const yrs=Math.max(0,s.ret-s.age);return{mo:s.mo,yrs,rate:s.rate,fv:Math.round(fvm(s.mo,yrs*12,s.rate)),age:s.age}},
+sample:()=>smp(66,8,r=>{const mo=Math.round(rr(r,5,50))*10000,age=Math.round(rr(r,24,48)),yrs=60-age,rate=Math.round(rr(r,1,6)*10)/10;return{mo,yrs,rate,fv:Math.round(fvm(mo,yrs*12,rate)),age}}),
+group(l,el){
+  const P=PAL(),m=meRow(l);
+  el.innerHTML=`<div class="kpis">${kpi('g6a','모두의 월 저축 합계','hi')}${kpi('g6b','평균 저축 기간')}${kpi('g6c','평균 은퇴 시 금액')}</div><div><div class="sub">저축 기간이 길수록 금액은 어떻게 달라지나</div>${cv('g6x','tall')}</div><p class="hint">점 하나가 참가자 한 명입니다. 같은 기간이라도 월 저축액과 이율에 따라 위아래로 갈립니다.</p>`;
+  put('g6a',fW(sum(l.map(x=>x.d.mo))));put('g6b',fN(avg(l.map(x=>x.d.yrs)),1)+'년');put('g6c',fW(avg(l.map(x=>x.d.fv))));
+  const ds=[{label:'참가자',data:l.filter(x=>!x.me).map(x=>({x:x.d.yrs,y:x.d.fv/1e4,n:x.nick,m:x.d.mo})),backgroundColor:P[2],pointRadius:6}];
+  if(m)ds.push({label:'나',data:[{x:m.d.yrs,y:m.d.fv/1e4,n:m.nick,m:m.d.mo}],backgroundColor:P[0],pointRadius:9,pointStyle:'rectRot'});
+  mk('g6x','scatter',{datasets:ds},{scales:{x:{type:'linear',title:{display:true,text:'저축 기간 (년)'}},y:{title:{display:true,text:'은퇴 시 금액 (만원)'},ticks:{callback:v=>fN(v)}}},tip:{label:c=>`${c.raw.n}: ${fN(c.raw.x)}년 · 월 ${fW(c.raw.m)} → ${fN(c.raw.y)}만원`}});
+}});
+
+/* ===== 7. 단리 vs 복리 ===== */
+reg('c7',{no:7,short:'단리 vs 복리',title:'이자가 이자를 낳는 속도',ref:'교재 Worksheet #15–18 · p.42–53',
+intro:'단리는 처음 맡긴 원금에만, 복리는 쌓인 이자에도 이자가 붙습니다. 맡기는 횟수(연·분기·월)가 많을수록 조금씩 더 늘어납니다. 먼저 얼마나 차이 날지 예상해 보고 계산으로 확인하세요.',
+formula:['단리  A = P(1 + r·t)','복리  A = P(1 + r/n)^(n·t)','2배가 되는 시간 ≈ 72 ÷ 연이율(%)'],
+def:()=>({P:10000000,r:5,t:10,n:12,tgt:15000000,q:null}),
+html:s=>`<div class="row">${fld('P','원금',s.P,{u:'원'})}${fld('r','연 이율',s.r,{u:'%',step:'0.1'})}${fld('t','기간',s.t,{u:'년'})}${sel('n','복리 횟수',s.n,[[1,'연 1회'],[2,'반기 (연 2회)'],[4,'분기 (연 4회)'],[12,'월 (연 12회)'],[365,'매일']])}${fld('tgt','목표 금액',s.tgt,{u:'원'})}</div>
+<div class="kpis">${kpi('c7a','단리 만기')}${kpi('c7b','복리 만기','hi')}${kpi('c7c','복리가 더 번 돈')}${kpi('c7d','2배 되는 시간 (복리)')}${kpi('c7e','목표 도달 (단리 / 복리)')}</div>
+${cv('c7ch')}<div class="sub">교재 표: 연 복리 연도별 변화</div><div class="tw"><table><thead><tr><th>연도</th><th>연초 원금</th><th>그해 이자</th><th>연말 합계</th></tr></thead><tbody id="c7t"></tbody></table></div>
+${quiz('q','1,000만 원을 연 5% 복리(연 1회)로 30년 두면 원금의 몇 배가 될까요?',[['2','약 2배'],['3','약 3배'],['4','약 4배'],['6','약 6배']],s.q,'4','1.05의 30제곱은 약 4.32배입니다. 같은 조건의 단리는 2.5배에 그칩니다.')}`,
+act(a,el,s){if(a==='q'){s.q=el.dataset.v;return true}if(a==='qr'){s.q=null;return true}return false},
+calc(s){
+  const P=PAL(),A1=y=>s.P*(1+s.r/100*y),A2=y=>s.P*Math.pow(1+s.r/100/s.n,s.n*y),i=s.r/100;
+  put('c7a',fW(A1(s.t)));put('c7b',fW(A2(s.t)));put('c7c',fW(A2(s.t)-A1(s.t)),'pos');
+  put('c7d',i?`복리 ${fN(Math.log(2)/(s.n*Math.log(1+i/s.n)),1)}년 · 단리 ${fN(1/i,1)}년`:'–');
+  const ts=i&&s.tgt>s.P?`${fN((s.tgt/s.P-1)/i,1)}년 / ${fN(Math.log(s.tgt/s.P)/(s.n*Math.log(1+i/s.n)),1)}년`:'–';put('c7e',ts);
+  const ys=Array.from({length:Math.max(1,Math.round(s.t))+1},(_,k)=>k);
+  mk('c7ch','line',{labels:ys.map(y=>y+'년'),datasets:[{label:'단리',data:ys.map(A1),borderColor:P[5],backgroundColor:P[5],pointRadius:2,tension:0},{label:'복리',data:ys.map(A2),borderColor:P[0],backgroundColor:P[0],pointRadius:2,tension:.1}]},{scales:{y:{ticks:{callback:wonTick}}},tip:{label:c=>`${c.dataset.label}: ${fW(c.raw)}`}});
+  let bal=s.P,h='';for(let y=1;y<=Math.min(10,Math.round(s.t));y++){const it=bal*i;h+=`<tr><td>${y}년</td><td class="num">${fN(bal)}</td><td class="num">${fN(it)}</td><td class="num"><b>${fN(bal+it)}</b></td></tr>`;bal+=it}
+  $('#c7t').innerHTML=h||'<tr><td colspan="4">기간을 1년 이상으로 입력하세요</td></tr>';
+},
+pub(s){const a1=s.P*(1+s.r/100*s.t),a2=s.P*Math.pow(1+s.r/100/s.n,s.n*s.t);return{q:s.q||'',r:s.r,t:s.t,ex:r2(a1?(a2/a1-1)*100:0)}},
+sample:()=>smp(77,8,r=>{const q=['2','3','4','4','6'][Math.floor(r()*5)],rate=Math.round(rr(r,2,8)*10)/10,t=Math.round(rr(r,5,30));return{q,r:rate,t,ex:r2((Math.pow(1+rate/1200,12*t)/(1+rate/100*t)-1)*100)}}),
+group(l,el){
+  const P=PAL(),c=countBy(l,'q'),n=sum(Object.values(c)),sorted=[...l].sort((a,b)=>b.d.ex-a.d.ex);
+  el.innerHTML=`<div class="kpis">${kpi('g7a','정답(약 4배) 비율')}${kpi('g7b','평균 기간')}${kpi('g7c','복리가 단리보다 더 번 비율(평균)')}</div><div><div class="sub">30년 복리, 몇 배일 거라 예상했나 (명)</div>${cv('g7x','short')}</div><div><div class="sub">참가자 시나리오: 복리가 단리보다 더 늘린 비율</div>${cv('g7y','tall')}</div>`;
+  put('g7a',n?fP((c['4']||0)/n*100,0):'–');put('g7b',fN(avg(l.map(x=>x.d.t)),1)+'년');put('g7c',fP(avg(l.map(x=>x.d.ex))));
+  mk('g7x','bar',{labels:['2배','3배','4배 (정답)','6배'],datasets:[{data:['2','3','4','6'].map(k=>c[k]||0),backgroundColor:[P[3],P[3],P[2],P[3]],borderRadius:6}]},{legend:false,scales:{y:{ticks:{precision:0,stepSize:1},beginAtZero:true}}});
+  mk('g7y','bar',{labels:lab(sorted),datasets:[{data:sorted.map(x=>x.d.ex),backgroundColor:sorted.map(x=>x.me?P[0]:P[4]),borderRadius:4}]},{legend:false,o:{indexAxis:'y'},tip:{label:c=>fP(c.raw)+' 더'}});
+}});
+
+/* ===== 8. 수익률 ROI ===== */
+const ROI10=[[1250,1000],[1030,1000],[1180,1000],[1080,1000],[1100,1000],[1000,1000],[10900,10000],[11500,10000],[10200,10000],[10500,10000]];
+reg('c8',{no:8,short:'수익률 ROI',title:'번 돈이 아니라 번 비율',ref:'교재 Worksheet #19 · p.54–55',
+intro:'1,000원을 벌었다는 말만으로는 잘 벌었는지 알 수 없습니다. 투자한 돈 대비 몇 %를 얻었는지(ROI)로 비교하고, 기간이 다른 투자는 1년으로 환산해 비교합니다. 손실이면 마이너스가 됩니다.',
+formula:['ROI(%) = (회수 금액 − 투자 금액) ÷ 투자 금액 × 100','연환산 = (회수 ÷ 투자)^(1/년) − 1'],
+def:()=>({I:10000000,R:10800000,y:1,bank:3}),
+html:s=>`<div class="row">${fld('I','투자 금액',s.I,{u:'원'})}${fld('R','회수 금액',s.R,{u:'원'})}${fld('y','보유 기간',s.y,{u:'년',step:'0.5'})}${fld('bank','비교: 예금 단리',s.bank,{u:'%',step:'0.1'})}</div>
+<div class="kpis">${kpi('c8a','손익')}${kpi('c8b','ROI','hi')}${kpi('c8c','연환산 수익률')}${kpi('c8d','같은 기간 예금과 차이')}</div><div id="c8n"></div>
+<div class="sub">교재 표 10건의 ROI</div>${cv('c8ch','short')}<div class="tw"><table><thead><tr><th>#</th><th>회수 R</th><th>투자 I</th><th>손익 R−I</th><th>ROI</th></tr></thead><tbody>${ROI10.map(([R,I],i)=>`<tr><td>${i+1}</td><td class="num">$${fN(R)}</td><td class="num">$${fN(I)}</td><td class="num">$${fN(R-I)}</td><td class="num"><b>${fP((R-I)/I*100)}</b></td></tr>`).join('')}</tbody></table></div>`,
+calc(s){
+  const g=s.R-s.I,roi=s.I?g/s.I*100:NaN,ann=s.I>0&&s.R>0&&s.y>0?(Math.pow(s.R/s.I,1/s.y)-1)*100:NaN,bk=s.I*s.bank/100*s.y,P=PAL();
+  put('c8a',fW(g),g<0?'neg':'pos');put('c8b',fP(roi),roi<0?'neg':'');put('c8c',fP(ann,2));put('c8d',(g-bk>=0?'+':'')+fW(g-bk),g-bk<0?'neg':'pos');
+  $('#c8n').innerHTML=roi<0?`<div class="note bad">손실입니다. 원금을 되찾으려면 지금 금액에서 <b>${fP(s.R>0?(s.I/s.R-1)*100:NaN)}</b>가 올라야 합니다.</div>`:`<div class="note ok">연환산 ${fP(ann,2)}는 예금 ${fP(s.bank)}와 비교해 ${ann>=s.bank?'높':'낮'}습니다. 단, 투자 수익은 보장되지 않는 값이므로 변동 위험을 함께 보세요.</div>`;
+  const v=ROI10.map(([R,I])=>(R-I)/I*100);
+  mk('c8ch','bar',{labels:v.map((_,i)=>'#'+(i+1)),datasets:[{data:v,backgroundColor:v.map(x=>x>0?P[2]:P[5]),borderRadius:5}]},{legend:false,scales:{y:{ticks:{callback:x=>x+'%'}}},tip:{label:c=>fP(c.raw)}});
+},
+pub(s){const roi=s.I?(s.R-s.I)/s.I*100:0,ann=s.I>0&&s.R>0&&s.y>0?(Math.pow(s.R/s.I,1/s.y)-1)*100:0;return{roi:r2(roi),ann:r2(ann),y:s.y,bank:s.bank}},
+sample:()=>smp(88,8,r=>{const roi=r2(rr(r,-18,34)),y=Math.round(rr(r,1,6));return{roi,ann:r2((Math.pow(1+roi/100,1/y)-1)*100),y,bank:3}}),
+group(l,el){
+  const P=PAL(),sorted=[...l].sort((a,b)=>b.d.roi-a.d.roi);
+  el.innerHTML=`<div class="kpis">${kpi('g8a','평균 ROI')}${kpi('g8b','중간값')}${kpi('g8c','손실 본 사람')}${kpi('g8d','예금 이기는 사람')}</div><div><div class="sub">참가자별 ROI</div>${cv('g8x','tall')}</div><div><div class="sub">연환산 수익률 vs 예금 3%</div>${cv('g8y','short')}</div>`;
+  put('g8a',fP(avg(l.map(x=>x.d.roi))));put('g8b',fP(median(l.map(x=>x.d.roi))));put('g8c',l.filter(x=>x.d.roi<0).length+'명 / '+l.length+'명');put('g8d',l.filter(x=>x.d.ann>x.d.bank).length+'명 / '+l.length+'명');
+  mk('g8x','bar',{labels:lab(sorted),datasets:[{data:sorted.map(x=>x.d.roi),backgroundColor:sorted.map(x=>x.d.roi<0?P[3]:x.me?P[0]:P[2]),borderRadius:4}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{callback:x=>x+'%'}}},tip:{label:c=>fP(c.raw)}});
+  const s2=[...l].sort((a,b)=>b.d.ann-a.d.ann);
+  mk('g8y','bar',{labels:lab(s2),datasets:[{type:'bar',label:'연환산',data:s2.map(x=>x.d.ann),backgroundColor:s2.map(x=>x.d.ann<0?P[3]:x.me?P[0]:P[2]),borderRadius:4},{type:'line',label:'예금 3%',data:s2.map(()=>3),borderColor:cssv('--mute'),borderDash:[5,4],pointRadius:0}]},{legend:false,scales:{y:{ticks:{callback:x=>x+'%'}}}});
+}});
+
+/* ===== 9. 팁·외식·여행 ===== */
+const TA0=[['항공권 (1인)',459,4],['호텔 (세금 포함, 박)',229.95,5],['식비 (일)',125,5],['영화',65,1],['어트랙션 패스',160,1],['택시',80,1],['쇼핑',350,1]];
+const TB0=[['연료 (편도)',20,2],['캠핑장 (박)',20,5],['장작 (묶음)',8,5],['카누 대여 (일)',30,5],['소형 RV (일)',100,5],['식비 (일)',75,5]];
+const tripRows=(k,a)=>`<div class="tw"><table><thead><tr><th>${k==='A'?'여행 A · 도시 호텔':'여행 B · 캠핑'}</th><th>단가</th><th>수량</th><th>소계</th><th></th></tr></thead><tbody>${a.map((r,i)=>`<tr><td><input class="t" data-t="s" data-k="${k}.${i}.0" value="${esc(r[0])}" style="min-width:140px"></td><td><input type="number" data-k="${k}.${i}.1" value="${r[1]}"></td><td><input type="number" data-k="${k}.${i}.2" value="${r[2]}" style="min-width:50px"></td><td class="num" id="t${k}${i}">–</td><td><button class="btn sm ghost" data-act="del${k}" data-i="${i}" aria-label="삭제">✕</button></td></tr>`).join('')}<tr><td colspan="5"><button class="btn sm" data-act="add${k}">+ 항목</button></td></tr></tbody></table></div>`;
+const tipShort=b=>b>=30?Math.floor(b/10)*2:Math.ceil(b/5)*5*2/10;
+reg('c9',{no:9,short:'팁·외식·여행',title:'외식 한 끼와 여행 예산의 합계',ref:'교재 Worksheet #21–24 · p.62–69',
+intro:'계산서에는 세금과 팁이 얹힙니다. 해외 출장이나 여행에서 필요한 팁 계산과 암산 요령(뒷자리 버리고 2배)을 익히고, 두 여행 계획의 총비용을 항목별로 비교합니다. 금액은 교재 시나리오 그대로 달러입니다.',
+formula:['총액 = 계산서 + 세금(GST 5%) + 팁(세전 금액 × 팁%)','암산: 30달러 이상은 일의 자리를 버리고 2배, 미만은 5·10 단위로 올려 2배 후 0 하나 제거'],
+def:()=>({tab:'tip',bill:56.89,pct:15,gst:5,ppl:4,A:TA0.map(r=>[...r]),B:TB0.map(r=>[...r])}),
+html(s){
+  const top=segTabs(s.tab,[['tip','팁·외식 계산'],['trip','여행 예산 비교']]);
+  if(s.tab==='trip')return top+tripRows('A',s.A)+tripRows('B',s.B)+`<div class="kpis">${kpi('c9a','A 총비용')}${kpi('c9b','B 총비용')}${kpi('c9c','더 싼 쪽','hi')}${kpi('c9d','차이')}</div>${cv('c9ch','short')}`;
+  return top+`<div class="row">${fld('bill','세전 계산서',s.bill,{u:'$'})}${fld('pct','팁',s.pct,{u:'%'})}${fld('gst','세금',s.gst,{u:'%'})}${fld('ppl','인원',s.ppl,{u:'명'})}</div>
+  <div class="row">${[[10,'배달 10%'],[15,'미용실·택시 15%'],[18,'웨이터 18%'],[20,'웨이터·바 20%']].map(([p,t])=>`<button class="btn sm" data-act="preset" data-v="${p}">${t}</button>`).join('')}</div>
+  <div class="kpis">${kpi('c9a','팁')}${kpi('c9b','세금')}${kpi('c9c','총액','hi')}${kpi('c9d','1인당 총액')}${kpi('c9e','반올림 총액')}</div>
+  <div class="sub">암산 요령과 정확한 값 비교</div>${cv('c9ch','short')}<div id="c9n"></div>`;
+},
+act(a,el,s){
+  if(a==='preset'){s.pct=+el.dataset.v;return true}
+  if(a==='addA')s.A.push(['새 항목',0,1]);else if(a==='addB')s.B.push(['새 항목',0,1]);
+  else if(a==='delA')s.A.splice(+el.dataset.i,1);else if(a==='delB')s.B.splice(+el.dataset.i,1);else return false;
+},
+calc(s){
+  const P=PAL();
+  if(s.tab==='trip'){const ta=s.A.map(r=>r[1]*r[2]),tb=s.B.map(r=>r[1]*r[2]);ta.forEach((v,i)=>put('tA'+i,fD(v)));tb.forEach((v,i)=>put('tB'+i,fD(v)));
+    const A=sum(ta),B=sum(tb);put('c9a',fD(A));put('c9b',fD(B));put('c9c',A<B?'여행 A':B<A?'여행 B':'같음');put('c9d',fD(Math.abs(A-B)));
+    const ds=[...s.A.map((r,i)=>({label:r[0],data:[ta[i],0],backgroundColor:P[i%6],borderColor:cssv('--surface'),borderWidth:1})),...s.B.map((r,i)=>({label:r[0],data:[0,tb[i]],backgroundColor:P[(i+2)%6],borderColor:cssv('--surface'),borderWidth:1}))];
+    mk('c9ch','bar',{labels:['여행 A','여행 B'],datasets:ds},{legend:false,o:{indexAxis:'y'},scales:{x:{stacked:true,ticks:{callback:v=>'$'+fN(v)}},y:{stacked:true}},tip:{label:c=>c.raw?`${c.dataset.label}: ${fD(c.raw)}`:''}});return}
+  const tip=s.bill*s.pct/100,gst=s.bill*s.gst/100,tot=s.bill+tip+gst,sc=tipShort(s.bill);
+  put('c9a',fD(tip));put('c9b',fD(gst));put('c9c',fD(tot));put('c9d',fD(tot/Math.max(1,s.ppl)));put('c9e',fD(Math.round(tot)));
+  mk('c9ch','bar',{labels:['정확히 15%','정확히 20%','암산 요령'],datasets:[{data:[s.bill*.15,s.bill*.2,sc],backgroundColor:[P[5],P[1],P[0]],borderRadius:6}]},{legend:false,scales:{y:{ticks:{callback:v=>'$'+fN(v)}}},tip:{label:c=>fD(c.raw)+` (${fP(s.bill?c.raw/s.bill*100:NaN)})`}});
+  $('#c9n').innerHTML=`<div class="note">암산으로는 <b>${fD(sc)}</b>를 남기면 되고, 이는 계산서의 <b>${fP(s.bill?sc/s.bill*100:NaN)}</b>입니다. ${s.ppl>1?`${s.ppl}명이면 1인당 팁은 ${fD(sc/s.ppl)}입니다.`:''}</div>`;
+},
+pub(s){const ta=sum(s.A.map(r=>r[1]*r[2])),tb=sum(s.B.map(r=>r[1]*r[2]));return{tip:s.pct,A:r2(ta),B:r2(tb)}},
+sample:()=>smp(99,8,r=>({tip:[10,15,15,18,20,20][Math.floor(r()*6)],A:r2(rr(r,2800,5200)),B:r2(rr(r,800,1700))})),
+group(l,el){
+  const P=PAL(),m=meRow(l),tips=[10,15,18,20],cnt=tips.map(t=>l.filter(x=>x.d.tip===t).length),other=l.filter(x=>!tips.includes(x.d.tip)).length;
+  el.innerHTML=`<div class="kpis">${kpi('g9a','평균 팁 비율')}${kpi('g9b','평균 여행 A')}${kpi('g9c','평균 여행 B')}</div><div><div class="sub">내가 정한 팁 비율 (명)</div>${cv('g9x','short')}</div><div><div class="sub">여행 총비용: 나 vs 평균</div>${cv('g9y','short')}</div>`;
+  put('g9a',fP(avg(l.map(x=>x.d.tip))));put('g9b',fD(avg(l.map(x=>x.d.A))));put('g9c',fD(avg(l.map(x=>x.d.B))));
+  mk('g9x','bar',{labels:[...tips.map(t=>t+'%'),'그 외'],datasets:[{data:[...cnt,other],backgroundColor:P[1],borderRadius:6}]},{legend:false,scales:{y:{ticks:{precision:0,stepSize:1},beginAtZero:true}}});
+  const ds=[{label:'참가자 평균',data:[avg(l.map(x=>x.d.A)),avg(l.map(x=>x.d.B))],backgroundColor:cssv('--mute'),borderRadius:5}];if(m)ds.push({label:'나',data:[m.d.A,m.d.B],backgroundColor:P[0],borderRadius:5});
+  mk('g9y','bar',{labels:['여행 A (도시 호텔)','여행 B (캠핑)'],datasets:ds},{scales:{y:{ticks:{callback:v=>'$'+fN(v)}}},tip:{label:c=>`${c.dataset.label}: ${fD(c.raw)}`}});
+}});
+
+/* ===== 10. 대출·할부·할인 ===== */
+const pmt=(P,r,y)=>{const i=r/1200,n=y*12;return n?(i?P*i/(1-Math.pow(1+i,-n)):P/n):NaN};
+function aprOf(fin_,mo,n){if(!(fin_>0)||!(n>0)||mo*n<fin_)return NaN;let lo=0,hi=.2;for(let k=0;k<80;k++){const i=(lo+hi)/2,pv=i?mo*(1-Math.pow(1+i,-n))/i:mo*n;if(pv>fin_)lo=i;else hi=i}return (lo+hi)/2*12*100}
+const LN5=[[16500,8.5,6,'스노모빌'],[46000,3,6,'하이브리드 차'],[3350,5,3,'노트북'],[5000,6.7,4,'대출 d'],[4500,8.5,3,'대출 e']];
+reg('c10',{no:10,short:'대출·할부·할인',title:'외상의 진짜 가격',ref:'교재 Worksheet #25–27 · p.70–78',
+intro:'매달 내는 돈이 작아 보여도 총액을 더하면 원금보다 훨씬 큽니다. 대출은 총 이자를, 할부는 일시불과의 차이와 「숨은 연이율」을, 할인은 판매가와 실제 할인율을 계산합니다.',
+formula:['월 상환액 = P·i ÷ (1 − (1+i)^−n),  i = 연이율/12','총 이자 = 월 상환액 × 개월 수 − 원금','할인가 = 정가 × (1 − 할인율)'],
+def:()=>({tab:'loan',P:20000000,r:5,y:5,price:5800000,tax:10,down:1000000,mo:250000,n:24,dp:89000,dpc:25,orig:129000,paid:77400}),
+html(s){
+  const top=segTabs(s.tab,[['loan','대출'],['inst','할부 vs 일시불'],['disc','할인']]);
+  if(s.tab==='inst')return top+`<div class="row">${fld('price','상품 가격 (세전)',s.price,{u:'원'})}${fld('tax','세금',s.tax,{u:'%'})}${fld('down','선납금',s.down,{u:'원'})}${fld('mo','월 납부액 (세금 포함)',s.mo,{u:'원'})}${fld('n','개월 수',s.n,{u:'개월'})}</div>
+  <div class="kpis">${kpi('c10a','일시불 총액')}${kpi('c10b','할부 총액')}${kpi('c10c','더 내는 돈','hi')}${kpi('c10d','추가 비용률')}${kpi('c10e','숨은 연이율')}</div><div id="c10n"></div>${cv('c10ch','short')}`;
+  if(s.tab==='disc')return top+`<div class="row">${fld('dp','정가',s.dp,{u:'원'})}${fld('dpc','할인율',s.dpc,{u:'%'})}</div><div class="kpis">${kpi('c10a','할인액')}${kpi('c10b','판매가','hi')}</div>
+  <div class="sub">요일별 할인 세일 (월 10% … 금 50%)</div>${cv('c10ch','short')}
+  <div class="sub">거꾸로: 얼마나 할인받았나</div><div class="row">${fld('orig','정가',s.orig,{u:'원'})}${fld('paid','낸 돈',s.paid,{u:'원'})}</div><div class="kpis">${kpi('c10c','실제 할인율')}${kpi('c10d','아낀 돈')}</div>`;
+  return top+`<div class="row">${fld('P','대출 원금',s.P,{u:'원'})}${fld('r','연 이율',s.r,{u:'%',step:'0.1'})}${fld('y','기간',s.y,{u:'년',step:'0.5'})}</div>
+  <div class="kpis">${kpi('c10a','월 상환액','hi')}${kpi('c10b','총 상환액')}${kpi('c10c','총 이자')}${kpi('c10d','원금 대비 이자')}</div>${cv('c10ch','short')}
+  <div class="sub">교재 대출 5건 (달러)</div><div class="tw"><table><thead><tr><th>대출</th><th>월 상환</th><th>총 이자</th><th>원금 대비</th></tr></thead><tbody>${LN5.map(([p,r,y,n])=>{const m=pmt(p,r,y),it=m*y*12-p;return `<tr><td>${n} (${r}% · ${y}년)</td><td class="num">${fD(m)}</td><td class="num">${fD(it)}</td><td class="num">${fP(it/p*100)}</td></tr>`}).join('')}</tbody></table></div>`;
+},
+calc(s){
+  const P=PAL();
+  if(s.tab==='inst'){const cash=s.price*(1+s.tax/100),tot=s.down+s.mo*s.n,ex=tot-cash,apr=aprOf(cash-s.down,s.mo,s.n);
+    put('c10a',fW(cash));put('c10b',fW(tot));put('c10c',fW(ex),ex>0?'neg':'pos');put('c10d',fP(cash?ex/cash*100:NaN));put('c10e',fin(apr)?fP(apr):'–');
+    $('#c10n').innerHTML=`<div class="note ${ex>0?'bad':'ok'}">${ex>0?`할부로 사면 <b>${fW(ex)}</b>을 더 냅니다. 선납금을 뺀 ${fW(cash-s.down)}을 ${s.n}개월 빌린 것과 같고, 그 대출의 연이율이 <b>${fin(apr)?fP(apr):'–'}</b>입니다.`:'할부 총액이 일시불 이하입니다 (무이자 할부).'}</div>`;
+    mk('c10ch','bar',{labels:['일시불','할부'],datasets:[{label:'선납금',data:[0,s.down],backgroundColor:P[5]},{label:'월 납부 합계',data:[0,s.mo*s.n],backgroundColor:P[1]},{label:'일시불 가격',data:[cash,0],backgroundColor:P[0]}]},{o:{indexAxis:'y'},scales:{x:{stacked:true,ticks:{callback:wonTick}},y:{stacked:true}},tip:{label:c=>c.raw?`${c.dataset.label}: ${fW(c.raw)}`:''}});return}
+  if(s.tab==='disc'){put('c10a',fW(s.dp*s.dpc/100));put('c10b',fW(s.dp*(1-s.dpc/100)));const d=s.orig?(1-s.paid/s.orig)*100:NaN;put('c10c',fP(d));put('c10d',fW(s.orig-s.paid));
+    mk('c10ch','bar',{labels:['월 10%','화 20%','수 30%','목 40%','금 50%'],datasets:[{data:[10,20,30,40,50].map(p=>s.dp*(1-p/100)),backgroundColor:[P[5],P[5],P[0],P[0],P[2]],borderRadius:6}]},{legend:false,scales:{y:{ticks:{callback:wonTick}}},tip:{label:c=>fW(c.raw)}});return}
+  const m=pmt(s.P,s.r,s.y),n=Math.round(s.y*12),tot=m*n,it=tot-s.P;
+  put('c10a',fW(m));put('c10b',fW(tot));put('c10c',fW(it),'neg');put('c10d',fP(s.P?it/s.P*100:NaN));
+  const i=s.r/1200;let bal=s.P;const pr=[],ir=[],ys=Math.ceil(s.y);for(let y=0;y<ys;y++){let a=0,b=0;for(let k=0;k<12&&y*12+k<n;k++){const x=bal*i,p=m-x;a+=p;b+=x;bal-=p}pr.push(a);ir.push(b)}
+  mk('c10ch','bar',{labels:pr.map((_,k)=>(k+1)+'년차'),datasets:[{label:'원금 상환',data:pr,backgroundColor:P[0]},{label:'이자',data:ir,backgroundColor:P[3]}]},{scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:wonTick}}},tip:{label:c=>`${c.dataset.label}: ${fW(c.raw)}`}});
+},
+pub(s){const m=pmt(s.P,s.r,s.y),li=s.P?(m*s.y*12-s.P)/s.P*100:0,cash=s.price*(1+s.tax/100),apr=aprOf(cash-s.down,s.mo,s.n),ex=cash?(s.down+s.mo*s.n-cash)/cash*100:0;return{li:r2(li),apr:fin(apr)?r2(apr):0,ex:r2(ex),r:s.r}},
+sample:()=>smp(111,8,r=>{const rate=Math.round(rr(r,3,9)*10)/10,y=Math.round(rr(r,2,7)),li=r2((pmt(1e7,rate,y)*y*12-1e7)/1e7*100);return{li,apr:r2(rr(r,0,22)),ex:r2(rr(r,0,24)),r:rate}}),
+group(l,el){
+  const P=PAL(),s1=[...l].sort((a,b)=>b.d.li-a.d.li),s2=[...l].sort((a,b)=>b.d.apr-a.d.apr);
+  el.innerHTML=`<div class="kpis">${kpi('g10a','대출 평균 이자 부담')}${kpi('g10b','할부 평균 숨은 연이율')}${kpi('g10c','무이자(0%) 할부')}</div><div><div class="sub">대출: 원금 대비 총 이자 (%)</div>${cv('g10x','tall')}</div><div><div class="sub">할부: 숨은 연이율 (%)</div>${cv('g10y','tall')}</div>`;
+  put('g10a',fP(avg(l.map(x=>x.d.li))));put('g10b',fP(avg(l.map(x=>x.d.apr))));put('g10c',l.filter(x=>x.d.apr<=0).length+'명');
+  mk('g10x','bar',{labels:lab(s1),datasets:[{data:s1.map(x=>x.d.li),backgroundColor:s1.map(x=>x.me?P[0]:P[3]),borderRadius:4}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{callback:v=>v+'%'}}},tip:{label:c=>fP(c.raw)}});
+  mk('g10y','bar',{labels:lab(s2),datasets:[{data:s2.map(x=>x.d.apr),backgroundColor:s2.map(x=>x.me?P[0]:P[1]),borderRadius:4}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{callback:v=>v+'%'}}},tip:{label:c=>fP(c.raw)}});
+}});
+
+/* ===== 11. 생활 비용 비교 ===== */
+const PLANS=[[25,150],[30,200],[35,250],[45,450]],OPTS={A:[10,100],B:[15,200],C:[20,Infinity]};
+const phoneCost=(p,o,min,txt)=>{const [fee,inc]=PLANS[p],[of,ot]=OPTS[o];return{fee,opt:of,fix:7.7,over:Math.max(0,min-inc)*.35+Math.max(0,txt-ot)*.35}};
+const VEH=[['Ford Ranger 픽업',12.4,15.7],['Ford Escape',9.4,12.4],['Ford Focus',6.7,9.8],['Dodge Caravan',9.4,13.8],['Dodge Caliber',7.8,9.8],['Sierra GMC',11.8,16.8],['Hummer SUV',14.7,18.1],['Smart Car',3.9,4.6]];
+const RENT=[['소형',40,15,70],['컴팩트',45,21,75],['중형',49,23,80],['스테이션왜건',55,25,89],['밴',64,28,100],['럭셔리',70,30,105]];
+reg('c11',{no:11,short:'폰·연비·렌터카',title:'생활 속 비용 비교하기',ref:'교재 Worksheet #28–31 · p.79–91',
+intro:'요금제, 자동차 연비, 렌터카 요금은 사용량에 따라 정답이 바뀝니다. 내 사용량을 넣고 가장 싼 선택이 무엇인지, 어디서 역전되는지(손익분기)를 찾습니다. 금액은 교재 시나리오 그대로 달러입니다.',
+formula:['월 통신비 = 기본료 + 옵션 + 고정수수료 7.70 + 초과분 × 0.35','연료 = 거리 ÷ 100 × L/100km × 리터당 가격','렌터카 손익분기 = 일수 × (무제한 − 기본) ÷ km당 요금'],
+def:()=>({tab:'phone',plan:1,opt:'A',min:200,txt:120,v:2,dist:300,fp:1.01,city:50,od0:22320,od1:23220,L:75,rating:7.5,m:2,days:7,km:1700}),
+html(s){
+  const top=segTabs(s.tab,[['phone','휴대폰 요금제'],['fuel','자동차 연비'],['rent','렌터카']]);
+  if(s.tab==='fuel')return top+`<div class="row">${sel('v','차량',s.v,VEH.map((v,i)=>[i,v[0]]),{w:'w2'})}${fld('dist','주행 거리',s.dist,{u:'km'})}${fld('fp','리터당 가격',s.fp,{u:'$'})}${fld('city','시내 주행 비율',s.city,{u:'%'})}</div>
+  <div class="kpis">${kpi('c11a','연료 사용량')}${kpi('c11b','연료비','hi')}${kpi('c11c','가장 싼 차와 차이')}</div>${cv('c11ch','short')}
+  <div class="sub">내 차 연비 직접 재기</div><div class="row">${fld('od0','주행거리계 처음',s.od0,{u:'km'})}${fld('od1','주행거리계 나중',s.od1,{u:'km'})}${fld('L','주유량',s.L,{u:'L'})}${fld('rating','공식 연비',s.rating,{u:'L/100km'})}</div><div class="kpis">${kpi('c11d','실제 연비')}${kpi('c11e','공식 연비와 차이')}</div>`;
+  if(s.tab==='rent')return top+`<div class="row">${sel('m','차종',s.m,RENT.map((v,i)=>[i,v[0]]))}${fld('days','대여 일수',s.days,{u:'일'})}${fld('km','총 주행',s.km,{u:'km'})}</div>
+  <div class="kpis">${kpi('c11a','기본요금 + km당')}${kpi('c11b','무제한 주행')}${kpi('c11c','더 싼 요금제','hi')}${kpi('c11d','아끼는 돈')}${kpi('c11e','손익분기 주행거리')}</div>${cv('c11ch','short')}`;
+  return top+`<div class="row">${sel('plan','요금제',s.plan,PLANS.map((p,i)=>[i,`플랜 ${i+1} · $${p[0]} · ${p[1]}분`]),{w:'w2'})}${sel('opt','추가 옵션',s.opt,[['A','A · $10 · 문자 100건'],['B','B · $15 · 문자 200건'],['C','C · $20 · 문자 무제한']],{w:'w2'})}${fld('min','월 통화(주간)',s.min,{u:'분'})}${fld('txt','월 문자 발송',s.txt,{u:'건'})}</div>
+  <div class="kpis">${kpi('c11a','월 청구액','hi')}${kpi('c11b','첫 달 (연결료 $35)')}${kpi('c11c','내 사용량 최저 조합')}</div>${cv('c11ch','short')}`;
+},
+calc(s){
+  const P=PAL();
+  if(s.tab==='fuel'){const lp=(v,c)=>s.dist/100*(v[2]*c+v[1]*(1-c)),c=s.city/100,L=lp(VEH[s.v],c),cost=L*s.fp,costs=VEH.map(v=>lp(v,c)*s.fp),min=Math.min(...costs);
+    put('c11a',fN(L,1)+' L');put('c11b',fD(cost));put('c11c',cost-min<.005?'가장 쌈':'+'+fD(cost-min),cost-min>.005?'neg':'pos');
+    mk('c11ch','bar',{labels:VEH.map(v=>v[0]),datasets:[{data:costs,backgroundColor:costs.map((_,i)=>i===+s.v?P[0]:P[5]),borderRadius:4}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{callback:v=>'$'+fN(v)}}},tip:{label:c=>fD(c.raw)}});
+    const d=s.od1-s.od0,l100=d>0?s.L/d*100:NaN;put('c11d',fin(l100)?fN(l100,1)+' L/100km':'–');const df=l100-s.rating;put('c11e',fin(df)?(df>0?'+':'')+fN(df,1)+' L/100km':'–',df>0?'neg':'pos');return}
+  if(s.tab==='rent'){const r=RENT[s.m],std=s.days*r[1]+s.km*r[2]/100,unl=s.days*r[3],be=s.days*(r[3]-r[1])/(r[2]/100);
+    put('c11a',fD(std));put('c11b',fD(unl));put('c11c',std<unl?'기본 + km당':'무제한');put('c11d',fD(Math.abs(std-unl)));put('c11e',fN(be)+' km');
+    const xs=[];for(let k=0;k<=Math.max(be*1.6,s.km*1.3,200);k+=Math.max(10,Math.round(be/40)))xs.push(k);
+    mk('c11ch','scatter',{datasets:[{label:'기본 + km당',data:xs.map(k=>({x:k,y:s.days*r[1]+k*r[2]/100})),showLine:true,pointRadius:0,borderColor:P[3],borderWidth:2},{label:'무제한',data:xs.map(k=>({x:k,y:unl})),showLine:true,pointRadius:0,borderColor:P[0],borderWidth:2},{label:'내 주행',data:[{x:s.km,y:Math.min(std,unl)}],backgroundColor:P[1],pointRadius:7}]},{scales:{x:{type:'linear',title:{display:true,text:'총 주행거리 (km)'}},y:{title:{display:true,text:'요금 ($)'},ticks:{callback:v=>'$'+fN(v)}}},tip:{label:c=>`${c.dataset.label}: ${fD(c.raw.y)}`}});return}
+  const c=phoneCost(+s.plan,s.opt,s.min,s.txt),tot=c.fee+c.opt+c.fix+c.over;put('c11a',fD(tot));put('c11b',fD(tot+35));
+  let best=[1e9];for(let p=0;p<4;p++)for(const o of['A','B','C']){const x=phoneCost(p,o,s.min,s.txt),t=x.fee+x.opt+x.fix+x.over;if(t<best[0])best=[t,p,o]}put('c11c',`${fD(best[0])} (플랜 ${best[1]+1}·옵션 ${best[2]})`);
+  const cs=[0,1,2,3].map(p=>phoneCost(p,s.opt,s.min,s.txt));
+  mk('c11ch','bar',{labels:['플랜 1','플랜 2','플랜 3','플랜 4'],datasets:[{label:'기본료',data:cs.map(x=>x.fee),backgroundColor:P[0]},{label:'옵션',data:cs.map(x=>x.opt),backgroundColor:P[4]},{label:'고정 수수료',data:cs.map(x=>x.fix),backgroundColor:P[5]},{label:'초과 사용',data:cs.map(x=>x.over),backgroundColor:P[3]}]},{scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'$'+v}}},tip:{label:c=>`${c.dataset.label}: ${fD(c.raw)}`}});
+},
+pub(s){const c=phoneCost(+s.plan,s.opt,s.min,s.txt),r=RENT[s.m],std=s.days*r[1]+s.km*r[2]/100,unl=s.days*r[3],d=s.od1-s.od0;return{ph:r2(c.fee+c.opt+c.fix+c.over),rent:std<unl?'std':'unl',l100:d>0?r2(s.L/d*100):0}},
+sample:()=>smp(122,8,r=>({ph:r2(rr(r,33,75)),rent:r()<.5?'std':'unl',l100:r2(rr(r,5.5,13))})),
+group(l,el){
+  const P=PAL(),sorted=[...l].sort((a,b)=>b.d.ph-a.d.ph),rc=countBy(l,'rent'),ls=l.filter(x=>x.d.l100>0);
+  el.innerHTML=`<div class="kpis">${kpi('g11a','평균 월 통신비')}${kpi('g11b','평균 실제 연비')}${kpi('g11c','렌터카 무제한 선택')}</div><div><div class="sub">월 통신비 (달러)</div>${cv('g11x','tall')}</div><div><div class="sub">렌터카: 내 일정에 유리한 요금제 (명)</div>${cv('g11y','short')}</div>`;
+  put('g11a',fD(avg(l.map(x=>x.d.ph))));put('g11b',ls.length?fN(avg(ls.map(x=>x.d.l100)),1)+' L/100km':'–');put('g11c',(rc.unl||0)+'명 / '+l.length+'명');
+  mk('g11x','bar',{labels:lab(sorted),datasets:[{data:sorted.map(x=>x.d.ph),backgroundColor:sorted.map(x=>x.me?P[0]:P[2]),borderRadius:4}]},{legend:false,o:{indexAxis:'y'},scales:{x:{ticks:{callback:v=>'$'+v}}},tip:{label:c=>fD(c.raw)}});
+  mk('g11y','bar',{labels:['기본 + km당','무제한'],datasets:[{data:[rc.std||0,rc.unl||0],backgroundColor:[P[3],P[0]],borderRadius:6}]},{legend:false,scales:{y:{ticks:{precision:0,stepSize:1},beginAtZero:true}}});
+}});
+
+/* ---------- 시작 ---------- */
+const h0=(location.hash||'').slice(1);
+renderTabs();go(CHAPS[h0]?h0:'home');
+initLive();
+})();
+</script>
